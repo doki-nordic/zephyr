@@ -66,6 +66,17 @@ struct eth_rtt_context {
 	u8_t rtt_down_buffer[CONFIG_ETH_RTT_DOWN_BUFFER_SIZE];
 };
 
+static const u8_t eth_rtt_reset_packet[] = {
+		SLIP_END, // BEGIN OF PACKET
+		0, 0, 0, 0, 0, 0, // DUMMY MAC ADDRESS
+		0, 0, 0, 0, 0, 0, // DUMMY MAC ADDRESS
+		254, 255,         // CUSTOM ETH TYPE
+		216, 33, 105, 148, 78, 111, 203, 53, 32,    // RANDOM PAYLOAD
+		137, 247, 122, 100, 72, 129, 255, 204, 173, // RANDOM PAYLOAD
+		255, 255, // TODO: CRC
+		SLIP_END, // END OF PACKET
+		};
+
 static struct eth_rtt_context eth_rtt_context_data;
 
 static void send_begin(struct eth_rtt_context *context)
@@ -326,6 +337,8 @@ static void eth_rtt_iface_init(struct net_if *iface)
 
 	k_timer_start(&eth_rtt_poll_timer, K_MSEC(50), K_MSEC(5000));
 
+	SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, &eth_rtt_reset_packet, sizeof(eth_rtt_reset_packet));
+
 }
 
 static enum ethernet_hw_caps eth_rtt_capabilities(struct device *dev)
@@ -350,6 +363,7 @@ static const struct ethernet_api eth_rtt_if_api = {
 	.iface_api.init = eth_rtt_iface_init,
 	.iface_api.send = eth_rtt_send,
 	.get_capabilities = eth_rtt_capabilities,
+	// TODO: setup MAC address
 };
 
 ETH_NET_DEVICE_INIT(eth_rtt, CONFIG_ETH_RTT_DRV_NAME, eth_rtt_init, &eth_rtt_context_data,
