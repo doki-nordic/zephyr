@@ -118,3 +118,5 @@ config  SYS_LOG_NET_LOOPBACK_LEVEL
           4 DEBUG, write SYS_LOG_DBG in addition to previous levels
 
 endif
+
+rsource "Kconfig.rtt"
