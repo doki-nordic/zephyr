@@ -66,7 +66,7 @@ struct eth_rtt_context {
 	u8_t rtt_down_buffer[CONFIG_ETH_RTT_DOWN_BUFFER_SIZE];
 };
 
-static const u8_t eth_rtt_reset_packet[] = {
+static const u8_t reset_packet_data[] = {
 		SLIP_END, // BEGIN OF PACKET
 		0, 0, 0, 0, 0, 0, // DUMMY MAC ADDRESS
 		0, 0, 0, 0, 0, 0, // DUMMY MAC ADDRESS
@@ -77,9 +77,11 @@ static const u8_t eth_rtt_reset_packet[] = {
 		SLIP_END, // END OF PACKET
 		};
 
-static struct eth_rtt_context eth_rtt_context_data;
+static struct eth_rtt_context context_data;
 
-static void send_begin(struct eth_rtt_context *context)
+/*********** OUTPUT PART OF THE DRIVER (from network stack to RTT) ***********/
+
+static void rtt_send_begin(struct eth_rtt_context *context)
 {
 	u8_t data = SLIP_END;
 	printk("BEGIN\n");
@@ -87,7 +89,7 @@ static void send_begin(struct eth_rtt_context *context)
 	context->crc = 0xFFFF;
 }
 
-static void send_fragment(struct eth_rtt_context *context, u8_t *ptr, int len)
+static void rtt_send_fragment(struct eth_rtt_context *context, u8_t *ptr, int len)
 {
 	printk("FRAG %d\n", len);
 	u8_t *end = ptr + len;
@@ -125,16 +127,16 @@ static void send_fragment(struct eth_rtt_context *context, u8_t *ptr, int len)
 	}
 }
 
-static void send_end(struct eth_rtt_context *context)
+static void rtt_send_end(struct eth_rtt_context *context)
 {
 	u8_t crc_buffer[2] = { context->crc >> 8, context->crc & 0xFF };
 	u8_t data = SLIP_END;
-	send_fragment(context, crc_buffer, sizeof(crc_buffer));
+	rtt_send_fragment(context, crc_buffer, sizeof(crc_buffer));
 	SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, &data, sizeof(data));
 	printk("END\n");
 }
 
-static int eth_rtt_send(struct net_if *iface, struct net_pkt *pkt)
+static int eth_iface_send(struct net_if *iface, struct net_pkt *pkt)
 {
 	struct device *dev = net_if_get_device(iface);
 	struct eth_rtt_context *context = dev->driver_data;
@@ -144,23 +146,25 @@ static int eth_rtt_send(struct net_if *iface, struct net_pkt *pkt)
 		return -ENODATA;
 	}
 
-	send_begin(context);
+	rtt_send_begin(context);
 
-	send_fragment(context, net_pkt_ll(pkt), net_pkt_ll_reserve(pkt));
+	rtt_send_fragment(context, net_pkt_ll(pkt), net_pkt_ll_reserve(pkt));
 
 	for (frag = pkt->frags; frag; frag = frag->frags)
 	{
-		send_fragment(context, frag->data, frag->len);
+		rtt_send_fragment(context, frag->data, frag->len);
 	};
 
-	send_end(context);
+	rtt_send_end(context);
 
 	net_pkt_unref(pkt);
 	
 	return 0;
 }
 
-void recv_packet(struct eth_rtt_context *context, u8_t* data, int len)
+/*********** INPUT PART OF THE DRIVER (from RTT to network stack) ***********/
+
+static void recv_packet(struct eth_rtt_context *context, u8_t* data, int len)
 {
 	struct net_pkt *pkt;
 	struct net_buf *pkt_buf = NULL;
@@ -225,7 +229,7 @@ void recv_packet(struct eth_rtt_context *context, u8_t* data, int len)
 	net_recv_data(context->iface, pkt);
 }
 
-void slip_decode_new_data(struct eth_rtt_context *context, int new_data_size)
+static void decode_new_slip_data(struct eth_rtt_context *context, int new_data_size)
 {
 	u8_t *src = &context->rx_buffer[context->rx_buffer_length];
 	u8_t *dst = &context->rx_buffer[context->rx_buffer_length];
@@ -266,13 +270,13 @@ void slip_decode_new_data(struct eth_rtt_context *context, int new_data_size)
 	}
 }
 
-void eth_rtt_poll_timer_handler(struct k_timer *dummy);
+static void poll_timer_handler(struct k_timer *dummy);
 
-K_TIMER_DEFINE(eth_rtt_poll_timer, eth_rtt_poll_timer_handler, NULL);
+K_TIMER_DEFINE(eth_rtt_poll_timer, poll_timer_handler, NULL);
 
-static void eth_rtt_poll_work_handler(struct k_work *work)
+static void poll_work_handler(struct k_work *work)
 {
-	struct eth_rtt_context *context = &eth_rtt_context_data;
+	struct eth_rtt_context *context = &context_data;
 	int total = 0;
 	int num;
 
@@ -282,7 +286,7 @@ static void eth_rtt_poll_work_handler(struct k_work *work)
 				sizeof(context->rx_buffer) - context->rx_buffer_length);
 		if (num > 0)
 		{
-			slip_decode_new_data(context, num);
+			decode_new_slip_data(context, num);
 			printk("READ: %d\n", num);
 			total += num;
 		}
@@ -292,14 +296,16 @@ static void eth_rtt_poll_work_handler(struct k_work *work)
 			K_MSEC(5000));
 }
 
-K_WORK_DEFINE(eth_rtt_poll_work, eth_rtt_poll_work_handler);
+K_WORK_DEFINE(eth_rtt_poll_work, poll_work_handler);
 
-void eth_rtt_poll_timer_handler(struct k_timer *dummy)
+static void poll_timer_handler(struct k_timer *dummy)
 {
     k_work_submit(&eth_rtt_poll_work);
 }
 
-static void eth_rtt_iface_init(struct net_if *iface)
+/*********** COMMON PART OF THE DRIVER (from RTT to network stack) ***********/
+
+static void eth_iface_init(struct net_if *iface)
 {
 	struct eth_rtt_context *context = net_if_get_device(iface)->driver_data;
 
@@ -337,11 +343,10 @@ static void eth_rtt_iface_init(struct net_if *iface)
 
 	k_timer_start(&eth_rtt_poll_timer, K_MSEC(50), K_MSEC(5000));
 
-	SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, &eth_rtt_reset_packet, sizeof(eth_rtt_reset_packet));
-
+	SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, &reset_packet_data, sizeof(reset_packet_data));
 }
 
-static enum ethernet_hw_caps eth_rtt_capabilities(struct device *dev)
+static enum ethernet_hw_caps eth_capabilities(struct device *dev)
 {
 	ARG_UNUSED(dev);
 	return 0;
@@ -359,13 +364,12 @@ static int eth_rtt_init(struct device *dev)
 	return 0;
 }
 
-static const struct ethernet_api eth_rtt_if_api = {
-	.iface_api.init = eth_rtt_iface_init,
-	.iface_api.send = eth_rtt_send,
-	.get_capabilities = eth_rtt_capabilities,
-	// TODO: setup MAC address
+static const struct ethernet_api if_api = {
+	.iface_api.init = eth_iface_init,
+	.iface_api.send = eth_iface_send,
+	.get_capabilities = eth_capabilities,
 };
 
-ETH_NET_DEVICE_INIT(eth_rtt, CONFIG_ETH_RTT_DRV_NAME, eth_rtt_init, &eth_rtt_context_data,
-		    NULL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, &eth_rtt_if_api,
-		    ETH_RTT_MTU);
+ETH_NET_DEVICE_INIT(eth_rtt, CONFIG_ETH_RTT_DRV_NAME, eth_rtt_init,
+		&context_data, NULL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT, &if_api,
+		ETH_RTT_MTU);
