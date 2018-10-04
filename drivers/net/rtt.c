@@ -73,7 +73,7 @@ static const u8_t eth_rtt_reset_packet[] = {
 		254, 255,         // CUSTOM ETH TYPE
 		216, 33, 105, 148, 78, 111, 203, 53, 32,    // RANDOM PAYLOAD
 		137, 247, 122, 100, 72, 129, 255, 204, 173, // RANDOM PAYLOAD
-		255, 255, // TODO: CRC
+		54, 81, // CRC
 		SLIP_END, // END OF PACKET
 		};
 
@@ -288,7 +288,7 @@ static void eth_rtt_poll_work_handler(struct k_work *work)
 		}
 	} while (num > 0);
 
-	k_timer_start(&eth_rtt_poll_timer, total == 0 ? K_MSEC(50) : K_MSEC(5),
+	k_timer_start(&eth_rtt_poll_timer, total == 0 ? K_MSEC(20) : K_MSEC(1), //TODO: timeouts from CONFIG_*
 			K_MSEC(5000));
 }
 
