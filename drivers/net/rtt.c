@@ -23,6 +23,10 @@
  * so software on PC side have to search for channels named "ETH_RTT".
  * PC side may want to know when device was reset. Driver sends one special
  * frame during driver initialization. See @a reset_frame_data.
+ * 
+ * MTU for this driver is configurable. Longer frames received from PC will be
+ * discarted, so make sure that software on PC side is configured with the same
+ * MTU.
  */
 
 #define SYS_LOG_DOMAIN "dev/eth_rtt"

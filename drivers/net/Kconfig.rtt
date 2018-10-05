@@ -1,4 +1,10 @@
+#
+# Copyright (c) 2018 Nordic Semiconductor ASA
+#
+# SPDX-License-Identifier: BSD-5-Clause-Nordic
+#
 
+# Kconfig - Ethernet over RTT driver configuration options
 
 menuconfig NET_RTT
 	select HAS_SEGGER_RTT
@@ -7,7 +13,7 @@ menuconfig NET_RTT
 	bool "Ethernet over RTT driver"
 	help
 	  This option enables network interface driver that sends and receives
-	  ethernet packets over RTT channel. The driver is intended primary for
+	  ethernet frames over RTT channel. The driver is intended primary for
 	  debugging and testing.
 
 if NET_RTT
@@ -31,28 +37,30 @@ config ETH_RTT_CHANNEL
 	int "RTT channel number"
 	default 2
 	help
-	  Sets RTT channel that will be used to transfer ethernet packets in
+	  Sets RTT channel that will be used to transfer ethernet frames in
 	  both directions. Channels 0 and 1 have special purpose defined by SEGGER,
 	  so it is safer to use channel 2 or above. This number must be smaller
 	  than SEGGER_RTT_MAX_NUM_UP_BUFFERS and cannot be used by any other module.
 
 config ETH_RTT_UP_BUFFER_SIZE
 	int "RTT up buffer size"
+	default 256 if SOC_NRF52810 || SOC_SERIES_NRF51X
+	default 1024 if SOC_NRF52832
 	default 3072
-	range 100 1000000
+	range 16 1000000
 	help
-	  Sets RTT buffer size for sending ethernet packets. Smaller values will
-	  save RAM memory, but will decrease the performance. Optimal value is
-	  bigger than MTU.
+	  Sets RTT buffer size for sending ethernet frames. Smaller values will
+	  save the RAM, but will decrease the performance.
 
 config ETH_RTT_DOWN_BUFFER_SIZE
 	int "RTT down buffer size"
+	default 128 if SOC_NRF52810 || SOC_SERIES_NRF51X
+	default 512 if SOC_NRF52832
 	default 3072
-	range 100 1000000
+	range 16 1000000
 	help
-	  Sets RTT buffer size for sending ethernet packets. Smaller values will
-	  save RAM memory, but will decrease the performance. Value smaller than
-	  MTU
+	  Sets RTT buffer size for receiving ethernet frames. Smaller values will
+	  save the RAM, but will decrease the performance. 
 
 config ETH_RTT_MTU
 	int "Maximum Transmission Unit (MTU)"
@@ -90,7 +98,7 @@ config ETH_RTT_DEBUG_HEX_DUMP
 	help
 	  Enabling this option prints out hex dumps of transferred data. There are
 	  four types of hex dumps: data that flows from RTT, data that flows to RTT,
-	  packets that are passed to network stack, packets that are get from network
+	  frames that are passed to network stack, frames that are get from network
 	  stack. This option will produce a lot of debug logs, so if you reading it
 	  make sure that logger did not discard something because of buffer overrun.
 
