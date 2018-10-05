@@ -4,12 +4,96 @@ menuconfig NET_RTT
 	select HAS_SEGGER_RTT
 	select RTT_CONSOLE
 	select NET_L2_ETHERNET
-	bool "Ethernet driver over RTT"
+	bool "Ethernet over RTT driver"
+	help
+	  This option enables network interface driver that sends and receives
+	  ethernet packets over RTT channel. The driver is intended primary for
+	  debugging and testing.
 
 if NET_RTT
 
-config NET_RTT_SOME
-	bool "Some option"
+config ETH_RTT_DRV_NAME
+	string "Ethernet over RTT driver name" 
+	default "net_rtt"
+	help
+	  This option sets the driver name.
+
+config ETH_RTT_MAC_ADDR
+	string "MAC address for the interface"
+	default ""
+	help
+	  Specify a MAC address for the Ethernet over RTT network interface in
+	  the form of hex 8-bit chars separated by colons (e.g.: aa:33:cc:22:e2:c0).
+	  The default is an empty string, which selects random address
+	  00:00:5E:00:53:xx according to RFC 7042.
+
+config ETH_RTT_CHANNEL
+	int "RTT channel number"
+	default 2
+	help
+	  Sets RTT channel that will be used to transfer ethernet packets in
+	  both directions. Channels 0 and 1 have special purpose defined by SEGGER,
+	  so it is safer to use channel 2 or above. This number must be smaller
+	  than SEGGER_RTT_MAX_NUM_UP_BUFFERS and cannot be used by any other module.
+
+config ETH_RTT_UP_BUFFER_SIZE
+	int "RTT up buffer size"
+	default 3072
+	range 100 1000000
+	help
+	  Sets RTT buffer size for sending ethernet packets. Smaller values will
+	  save RAM memory, but will decrease the performance. Optimal value is
+	  bigger than MTU.
+
+config ETH_RTT_DOWN_BUFFER_SIZE
+	int "RTT down buffer size"
+	default 3072
+	range 100 1000000
+	help
+	  Sets RTT buffer size for sending ethernet packets. Smaller values will
+	  save RAM memory, but will decrease the performance. Value smaller than
+	  MTU
+
+config ETH_RTT_MTU
+	int "Maximum Transmission Unit (MTU)"
+	default 1500
+	range 68 65536
+	help
+	  Sets the Maximum Transmission Unit (MTU) for the Ethernet over RTT
+	  network interface. Ethernet default is 1500 and using different value
+	  may cause unpredictable behavior. Change this value only if you really
+	  known what you are doing. IPv4 requires at least 68 and IPv6 requires
+	  at least 1280.
+
+config ETH_POLL_PERIOD_MS
+	int "Receive polling period (ms)"
+	default 50
+	range 1 200
+	help
+	  RTT has no interrupt, so read have to be done using polling. This option
+	  sets time in milliseconds between two consecutive RTT read attempts when
+	  there is no input transfer for some time. When transfer
+	  is currently running ETH_POLL_ACTIVE_PERIOD_MS is used instead.
+
+config ETH_POLL_ACTIVE_PERIOD_MS
+	int "Receive polling period when transfer is running (ms)"
+	default 5
+	range 1 ETH_POLL_PERIOD_MS
+	help
+	  This option sets time in milliseconds between two consecutive RTT read
+	  attempts when input transfer is running. When transfer stopped some time
+	  ago driver will use ETH_POLL_PERIOD_MS again.
+
+config ETH_RTT_DEBUG_HEX_DUMP
+	bool "Print hex dumps"
+	depends on SYS_LOG_ETHERNET_LEVEL >= 4
+	help
+	  Enabling this option prints out hex dumps of transferred data. There are
+	  four types of hex dumps: data that flows from RTT, data that flows to RTT,
+	  packets that are passed to network stack, packets that are get from network
+	  stack. This option will produce a lot of debug logs, so if you reading it
+	  make sure that logger did not discard something because of buffer overrun.
 
 endif
+
 
