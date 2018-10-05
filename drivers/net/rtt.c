@@ -1,23 +1,35 @@
 /*
- * Copyright (c) 2016 Intel Corporation
+ * Copyright (c) 2018 Nordic Semiconductor ASA
  *
- * SPDX-License-Identifier: Apache-2.0
+ * SPDX-License-Identifier: BSD-5-Clause-Nordic
  */
 
 /**
- * @file
+ * @file rtt.c
  *
- * SLIP driver using uart_pipe. This is meant for network connectivity between
- * host and qemu. The host will need to run tunslip process.
+ * Ethernet interface driver that transfers frames using SEGGER J-Link RTT.
+ * This is driver is meant to be used for debugging and testing purpose.
+ * Additional software is required on PC side that will be able to correctly
+ * handle frames that are transferred via dedicated RTT channel.
+ * 
+ * Before frame goes to RTT this driver calculates CRC of entire frame and adds
+ * two bytes of CRC at the end (big endian order). CRC is calculated using
+ * CRC-16/CCITT with initial seed 0xFFFF and no final xoring. RTT requires
+ * stream transfer, so frames are serialized using SLIP encoding. SLIP END
+ * byte (300 octal) is send before and after the frame, so empty frames
+ * produced during SLIP decoding should be ignored.
+ * 
+ * Specific RTT channel number is not assigned to transfer ethernet frames,
+ * so software on PC side have to search for channels named "ETH_RTT".
+ * PC side may want to know when device was reset. Driver sends one special
+ * frame during driver initialization. See @a reset_frame_data.
  */
 
 #define SYS_LOG_DOMAIN "dev/eth_rtt"
 #define SYS_LOG_LEVEL CONFIG_SYS_LOG_ETHERNET_LEVEL
 #include <logging/sys_log.h>
 #include <stdio.h>
-
 #include <kernel.h>
-
 #include <stdbool.h>
 #include <errno.h>
 #include <stddef.h>
@@ -33,12 +45,7 @@
 #include <crc16.h>
 #include <rtt/SEGGER_RTT.h>
 
-
-BUILD_ASSERT_MSG(CONFIG_ETH_RTT_CHANNEL < SEGGER_RTT_MAX_NUM_UP_BUFFERS,
-	"RTT channel number used in RTT network driver "
-	"must be lower than SEGGER_RTT_MAX_NUM_UP_BUFFERS");
-
-#define CHANNEL_NAME "NET_TAP"
+#define CHANNEL_NAME "ETH_RTT"
 
 #define SLIP_END     0300
 #define SLIP_ESC     0333
@@ -46,6 +53,10 @@ BUILD_ASSERT_MSG(CONFIG_ETH_RTT_CHANNEL < SEGGER_RTT_MAX_NUM_UP_BUFFERS,
 #define SLIP_ESC_ESC 0335
 
 #define RX_BUFFER_SIZE (CONFIG_ETH_RTT_MTU + 36)
+
+BUILD_ASSERT_MSG(CONFIG_ETH_RTT_CHANNEL < SEGGER_RTT_MAX_NUM_UP_BUFFERS,
+	"RTT channel number used in RTT network driver "
+	"must be lower than SEGGER_RTT_MAX_NUM_UP_BUFFERS");
 
 struct eth_rtt_context {
 	bool init_done;
@@ -58,23 +69,20 @@ struct eth_rtt_context {
 	u8_t rtt_down_buffer[CONFIG_ETH_RTT_DOWN_BUFFER_SIZE];
 };
 
-static const u8_t reset_packet_data[] = {
-		SLIP_END, // BEGIN OF PACKET
-		0, 0, 0, 0, 0, 0, // DUMMY MAC ADDRESS
-		0, 0, 0, 0, 0, 0, // DUMMY MAC ADDRESS
-		254, 255, // CUSTOM ETH TYPE
-		216, 33, 105, 148, 78, 111, 203, 53, 32,    // RANDOMLY GENERATED MAGIC PAYLOAD
-		137, 247, 122, 100, 72, 129, 255, 204, 173, // RANDOMLY GENERATED MAGIC PAYLOAD
-		54, 81, // CRC
-		SLIP_END, // END OF PACKET
+static const u8_t reset_frame_data[] = {
+		0, 0, 0, 0, 0, 0,            // dummy destination MAC address
+		0, 0, 0, 0, 0, 0,            // dummy source MAC address
+		254, 255,                    // custom eth type
+		216, 33, 105, 148, 78, 111,  // randomly generated magic payload
+		203, 53, 32, 137, 247, 122,  // randomly generated magic payload
+		100, 72, 129, 255, 204, 173, // randomly generated magic payload
 		};
 
 static struct eth_rtt_context context_data;
 
-
 #if (SYS_LOG_LEVEL >= SYS_LOG_LEVEL_DEBUG) && defined(CONFIG_ETH_RTT_DEBUG_HEX_DUMP)
 
-void dbg_hex_dump(const char* prefix, const u8_t* data, int length)
+void DBG_HEX_DUMP(const char* prefix, const u8_t* data, int length)
 {
 	int i;
 	char line[64];
@@ -97,33 +105,29 @@ void dbg_hex_dump(const char* prefix, const u8_t* data, int length)
 
 #else
 
-#define dbg_hex_dump(...)
+#define DBG_HEX_DUMP(...)
 #define DBG_HEX_DUMP_BEGIN(...)
 #define DBG_HEX_DUMP_END(...)
 
 #endif
-
 
 /*********** OUTPUT PART OF THE DRIVER (from network stack to RTT) ***********/
 
 static void rtt_send_begin(struct eth_rtt_context *context)
 {
 	u8_t data = SLIP_END;
-	DBG_HEX_DUMP_BEGIN("RTT<");
 	SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, &data, sizeof(data));
-	dbg_hex_dump("RTT<", &data, sizeof(data));
+	DBG_HEX_DUMP_BEGIN("RTT<");
+	DBG_HEX_DUMP("RTT<", &data, sizeof(data));
 	context->crc = 0xFFFF;
 }
 
-static void rtt_send_fragment(struct eth_rtt_context *context, u8_t *ptr, int len)
+static void rtt_send_fragment(struct eth_rtt_context *context, const u8_t *ptr, int len)
 {
-	u8_t *end = ptr + len;
-	u8_t *plain_begin = ptr;
+	const u8_t *end = ptr + len;
+	const u8_t *plain_begin = ptr;
 
 	context->crc = crc16_ccitt(context->crc, ptr, len);
-
-#if SYS_LOG_LEVEL >= SYS_LOG_LEVEL_DEBUG
-#endif
 
 	while (ptr < end)
 	{
@@ -132,20 +136,20 @@ static void rtt_send_fragment(struct eth_rtt_context *context, u8_t *ptr, int le
 			if (ptr > plain_begin)
 			{
 				SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, plain_begin, ptr - plain_begin);
-				dbg_hex_dump("RTT<", plain_begin, ptr - plain_begin);
+				DBG_HEX_DUMP("RTT<", plain_begin, ptr - plain_begin);
 			}
 
 			if (*ptr == SLIP_END)
 			{
 				static const u8_t data[2] = { SLIP_ESC, SLIP_ESC_END };
 				SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, data, sizeof(data));
-				dbg_hex_dump("RTT<", data, sizeof(data));
+				DBG_HEX_DUMP("RTT<", data, sizeof(data));
 			}
 			else if (*ptr == SLIP_ESC)
 			{
 				static const u8_t data[2] = { SLIP_ESC, SLIP_ESC_ESC };
 				SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, data, sizeof(data));
-				dbg_hex_dump("RTT<", data, sizeof(data));
+				DBG_HEX_DUMP("RTT<", data, sizeof(data));
 			}
 			plain_begin = ptr + 1;
 		}
@@ -155,7 +159,7 @@ static void rtt_send_fragment(struct eth_rtt_context *context, u8_t *ptr, int le
 	if (ptr > plain_begin)
 	{
 		SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, plain_begin, ptr - plain_begin);
-		dbg_hex_dump("RTT<", plain_begin, ptr - plain_begin);
+		DBG_HEX_DUMP("RTT<", plain_begin, ptr - plain_begin);
 	}
 }
 
@@ -165,7 +169,7 @@ static void rtt_send_end(struct eth_rtt_context *context)
 	u8_t data = SLIP_END;
 	rtt_send_fragment(context, crc_buffer, sizeof(crc_buffer));
 	SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, &data, sizeof(data));
-	dbg_hex_dump("RTT<", &data, sizeof(data));
+	DBG_HEX_DUMP("RTT<", &data, sizeof(data));
 	DBG_HEX_DUMP_END("RTT<");
 }
 
@@ -175,6 +179,15 @@ static int eth_iface_send(struct net_if *iface, struct net_pkt *pkt)
 	struct eth_rtt_context *context = dev->driver_data;
 	struct net_buf *frag;
 
+#if SYS_LOG_LEVEL >= SYS_LOG_LEVEL_DEBUG
+	int total_len = net_pkt_ll_reserve(pkt);
+	for (frag = pkt->frags; frag; frag = frag->frags)
+	{
+		total_len += frag->len;
+	};
+	SYS_LOG_DBG("Sending %d byte(s) frame", total_len);
+#endif
+
 	if (!pkt->frags) {
 		return -ENODATA;
 	}
@@ -182,12 +195,12 @@ static int eth_iface_send(struct net_if *iface, struct net_pkt *pkt)
 	DBG_HEX_DUMP_BEGIN("ETH>");
 	rtt_send_begin(context);
 
-	dbg_hex_dump("ETH>", net_pkt_ll(pkt), net_pkt_ll_reserve(pkt));
+	DBG_HEX_DUMP("ETH>", net_pkt_ll(pkt), net_pkt_ll_reserve(pkt));
 	rtt_send_fragment(context, net_pkt_ll(pkt), net_pkt_ll_reserve(pkt));
 
 	for (frag = pkt->frags; frag; frag = frag->frags)
 	{
-		dbg_hex_dump("ETH>", frag->data, frag->len);
+		DBG_HEX_DUMP("ETH>", frag->data, frag->len);
 		rtt_send_fragment(context, frag->data, frag->len);
 	};
 
@@ -201,7 +214,7 @@ static int eth_iface_send(struct net_if *iface, struct net_pkt *pkt)
 
 /*********** INPUT PART OF THE DRIVER (from RTT to network stack) ***********/
 
-static void recv_packet(struct eth_rtt_context *context, u8_t* data, int len)
+static void recv_frame(struct eth_rtt_context *context, u8_t* data, int len)
 {
 	struct net_pkt *pkt;
 	struct net_buf *pkt_buf = NULL;
@@ -211,7 +224,7 @@ static void recv_packet(struct eth_rtt_context *context, u8_t* data, int len)
 	{
 		if (len > 0)
 		{
-			SYS_LOG_ERR("Invalid packet length");
+			SYS_LOG_ERR("Invalid frame length");
 		}
 		return;
 	}
@@ -219,13 +232,13 @@ static void recv_packet(struct eth_rtt_context *context, u8_t* data, int len)
 	u16_t crc16 = crc16_ccitt(0xFFFF, data, len - 2);
 	if (data[len - 2] != (crc16 >> 8) || data[len - 1] != (crc16 & 0xFF))
 	{
-		SYS_LOG_ERR("Invalid packet CRC");
+		SYS_LOG_ERR("Invalid frame CRC");
 		return;
 	}
 
 	len -= 2;
 
-	SYS_LOG_DBG("Received %d byte(s) packet", len);
+	SYS_LOG_DBG("Received %d byte(s) frame", len);
 
 	pkt = net_pkt_get_reserve_rx(0, K_NO_WAIT);
 	if (!pkt) {
@@ -237,7 +250,6 @@ static void recv_packet(struct eth_rtt_context *context, u8_t* data, int len)
 
 	while (len > 0)
 	{
-		/* Reserve a data frag to receive the frame */
 		pkt_buf = net_pkt_get_frag(pkt, K_NO_WAIT);
 		if (!pkt_buf) {
 			SYS_LOG_ERR("Could not allocate data for rx pkt");
@@ -261,7 +273,7 @@ static void recv_packet(struct eth_rtt_context *context, u8_t* data, int len)
 
 		memcpy(pkt_buf->data, data, frag_len);
 
-		dbg_hex_dump("ETH<", data, frag_len);
+		DBG_HEX_DUMP("ETH<", data, frag_len);
 
 		len -= frag_len;
 		data += frag_len;
@@ -279,7 +291,7 @@ static void decode_new_slip_data(struct eth_rtt_context *context, int new_data_s
 	u8_t *src = &context->rx_buffer[context->rx_buffer_length];
 	u8_t *dst = &context->rx_buffer[context->rx_buffer_length];
 	u8_t *end = src + new_data_size;
-	u8_t *packet_start = context->rx_buffer;
+	u8_t *frame_start = context->rx_buffer;
 	u8_t last_byte = context->rx_buffer_length > 0 ? dst[-1] : 0;
 
 	while (src < end)
@@ -288,8 +300,8 @@ static void decode_new_slip_data(struct eth_rtt_context *context, int new_data_s
 		*dst++ = byte;
 		if (byte == SLIP_END)
 		{
-			recv_packet(context, packet_start, dst - packet_start - 1);
-			packet_start = dst;
+			recv_frame(context, frame_start, dst - frame_start - 1);
+			frame_start = dst;
 		}
 		else if (last_byte == SLIP_ESC)
 		{
@@ -307,11 +319,11 @@ static void decode_new_slip_data(struct eth_rtt_context *context, int new_data_s
 		last_byte = byte;
 	}
 
-	context->rx_buffer_length = dst - packet_start;
+	context->rx_buffer_length = dst - frame_start;
 
-	if (context->rx_buffer_length > 0 && packet_start != context->rx_buffer)
+	if (context->rx_buffer_length > 0 && frame_start != context->rx_buffer)
 	{
-		memmove(context->rx_buffer, packet_start, context->rx_buffer_length);
+		memmove(context->rx_buffer, frame_start, context->rx_buffer_length);
 	}
 }
 
@@ -322,13 +334,13 @@ K_TIMER_DEFINE(eth_rtt_poll_timer, poll_timer_handler, NULL);
 static void poll_work_handler(struct k_work *work)
 {
 	struct eth_rtt_context *context = &context_data;
-	int total = 0;
+	s32_t period = K_MSEC(CONFIG_ETH_POLL_PERIOD_MS);
 	int num;
 
 	do {
 		if (context->rx_buffer_length >= sizeof(context->rx_buffer))
 		{
-			printk("RX buffer overflow. Packet corrupted or bigger than MTU. Discarding buffer contents.\n");
+			SYS_LOG_ERR("RX buffer overflow. Discarding buffer contents.\n");
 			context->rx_buffer_length = 0;
 		}
 		num = SEGGER_RTT_Read(CONFIG_ETH_RTT_CHANNEL,
@@ -336,15 +348,13 @@ static void poll_work_handler(struct k_work *work)
 				sizeof(context->rx_buffer) - context->rx_buffer_length);
 		if (num > 0)
 		{
-			dbg_hex_dump("RTT>", &context->rx_buffer[context->rx_buffer_length], num);
+			DBG_HEX_DUMP("RTT>", &context->rx_buffer[context->rx_buffer_length], num);
 			decode_new_slip_data(context, num);
-			printk("READ: %d\n", num);
-			total += num;
+			period = K_MSEC(CONFIG_ETH_POLL_ACTIVE_PERIOD_MS);
 		}
 	} while (num > 0);
 
-	k_timer_start(&eth_rtt_poll_timer, total == 0 ? K_MSEC(20) : K_MSEC(1), //TODO: timeouts from CONFIG_*
-			K_MSEC(5000));
+	k_timer_start(&eth_rtt_poll_timer, period, K_MSEC(5000));
 }
 
 K_WORK_DEFINE(eth_rtt_poll_work, poll_work_handler);
@@ -354,7 +364,7 @@ static void poll_timer_handler(struct k_timer *dummy)
     k_work_submit(&eth_rtt_poll_work);
 }
 
-/*********** COMMON PART OF THE DRIVER (from RTT to network stack) ***********/
+/******** COMMON PART OF THE DRIVER (initialization on configuration) ********/
 
 static void eth_iface_init(struct net_if *iface)
 {
@@ -380,7 +390,6 @@ static void eth_iface_init(struct net_if *iface)
 
 	if (!mac_addr_configured)
 	{
-		/* 00-00-5E-00-53-xx Documentation RFC 7042 */
 		context->mac_addr[0] = 0x00;
 		context->mac_addr[1] = 0x00;
 		context->mac_addr[2] = 0x5E;
@@ -392,9 +401,24 @@ static void eth_iface_init(struct net_if *iface)
 	net_if_set_link_addr(iface, context->mac_addr, sizeof(context->mac_addr),
 			     NET_LINK_ETHERNET);
 
-	k_timer_start(&eth_rtt_poll_timer, K_MSEC(50), K_MSEC(5000));
+	k_timer_start(&eth_rtt_poll_timer, K_MSEC(CONFIG_ETH_POLL_PERIOD_MS), K_MSEC(5000));
 
-	SEGGER_RTT_Write(CONFIG_ETH_RTT_CHANNEL, &reset_packet_data, sizeof(reset_packet_data));
+	SYS_LOG_INF("Initialized '%s': MAC addr %02X:%02X:%02X:%02X:%02X:%02X, MTU %d, RTT channel %d, RAM consumed %d",
+		iface->if_dev->dev->config->name,
+		context->mac_addr[0],
+		context->mac_addr[1],
+		context->mac_addr[2],
+		context->mac_addr[3],
+		context->mac_addr[4],
+		context->mac_addr[5],
+		CONFIG_ETH_RTT_MTU,
+		CONFIG_ETH_RTT_CHANNEL,
+		sizeof(*context)
+		);
+
+	rtt_send_begin(context);
+	rtt_send_fragment(context, reset_frame_data, sizeof(reset_frame_data));
+	rtt_send_end(context);
 }
 
 static enum ethernet_hw_caps eth_capabilities(struct device *dev)
@@ -409,8 +433,6 @@ static int eth_rtt_init(struct device *dev)
 
 	SEGGER_RTT_ConfigUpBuffer(CONFIG_ETH_RTT_CHANNEL, CHANNEL_NAME, context->rtt_up_buffer, sizeof(context->rtt_up_buffer), SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
 	SEGGER_RTT_ConfigDownBuffer(CONFIG_ETH_RTT_CHANNEL, CHANNEL_NAME, context->rtt_down_buffer, sizeof(context->rtt_down_buffer), SEGGER_RTT_MODE_BLOCK_IF_FIFO_FULL);
-
-	SYS_LOG_DBG("[%p] dev %p", context, dev);
 
 	return 0;
 }
