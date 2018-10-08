@@ -412,14 +412,14 @@ static void eth_iface_init(struct net_if *iface)
 	k_timer_start(&eth_rtt_poll_timer, K_MSEC(CONFIG_ETH_POLL_PERIOD_MS),
 		      K_MSEC(5000));
 
-	SYS_LOG_INF(
-		"Initialized '%s': MAC addr %02X:%02X:%02X:%02X:%02X:%02X, "
-		"MTU %d, RTT channel %d, RAM consumed %d",
-		iface->if_dev->dev->config->name, context->mac_addr[0],
-		context->mac_addr[1], context->mac_addr[2],
-		context->mac_addr[3], context->mac_addr[4],
-		context->mac_addr[5], CONFIG_ETH_RTT_MTU,
-		CONFIG_ETH_RTT_CHANNEL, sizeof(*context));
+	SYS_LOG_INF("Initialized '%s': "
+		    "MAC addr %02X:%02X:%02X:%02X:%02X:%02X, "
+		    "MTU %d, RTT channel %d, RAM consumed %d",
+		    iface->if_dev->dev->config->name, context->mac_addr[0],
+		    context->mac_addr[1], context->mac_addr[2],
+		    context->mac_addr[3], context->mac_addr[4],
+		    context->mac_addr[5], CONFIG_ETH_RTT_MTU,
+		    CONFIG_ETH_RTT_CHANNEL, sizeof(*context));
 
 	rtt_send_begin(context);
 	rtt_send_fragment(context, reset_frame_data, sizeof(reset_frame_data));
