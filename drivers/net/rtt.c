@@ -53,8 +53,8 @@
 #define SLIP_ESC_ESC 0335
 
 #define RX_BUFFER_SIZE (CONFIG_ETH_RTT_MTU + 36)
-#define ACTIVE_POLL_COUNT (CONFIG_ETH_POLL_PERIOD_MS \
-				/ CONFIG_ETH_POLL_ACTIVE_PERIOD_MS)
+#define ACTIVE_POLL_COUNT (CONFIG_ETH_POLL_PERIOD_MS / \
+			   CONFIG_ETH_POLL_ACTIVE_PERIOD_MS)
 
 BUILD_ASSERT_MSG(CONFIG_ETH_RTT_CHANNEL < SEGGER_RTT_MAX_NUM_UP_BUFFERS,
 		 "RTT channel number used in RTT network driver "
@@ -451,8 +451,9 @@ static int eth_rtt_init(struct device *dev)
 
 static const struct ethernet_api if_api = {
 	.iface_api.init = eth_iface_init,
-	.iface_api.send = eth_iface_send, .get_capabilities =
-		eth_capabilities, };
+	.iface_api.send = eth_iface_send,
+	.get_capabilities = eth_capabilities,
+};
 
 ETH_NET_DEVICE_INIT(eth_rtt, CONFIG_ETH_RTT_DRV_NAME, eth_rtt_init,
 		    &context_data, NULL, CONFIG_KERNEL_INIT_PRIORITY_DEFAULT,
