@@ -11,19 +11,19 @@
  * This is driver is meant to be used for debugging and testing purpose.
  * Additional software is required on PC side that will be able to correctly
  * handle frames that are transferred via dedicated RTT channel.
- * 
+ *
  * Before frame goes to RTT this driver calculates CRC of entire frame and adds
  * two bytes of CRC at the end (big endian order). CRC is calculated using
  * CRC-16/CCITT with initial seed 0xFFFF and no final xoring. RTT requires
  * stream transfer, so frames are serialized using SLIP encoding. SLIP END
  * byte (300 octal) is send before and after the frame, so empty frames
  * produced during SLIP decoding should be ignored.
- * 
+ *
  * Specific RTT channel number is not assigned to transfer ethernet frames,
  * so software on PC side have to search for channels named "ETH_RTT".
  * PC side may want to know when device was reset. Driver sends one special
  * frame during driver initialization. See @a reset_frame_data.
- * 
+ *
  * MTU for this driver is configurable. Longer frames received from PC will be
  * discarted, so make sure that software on PC side is configured with the same
  * MTU.
@@ -35,16 +35,12 @@
 #include <stdio.h>
 #include <kernel.h>
 #include <stdbool.h>
-#include <errno.h>
 #include <stddef.h>
-#include <misc/util.h>
 #include <net/ethernet.h>
 #include <net/buf.h>
 #include <net/net_pkt.h>
 #include <net/net_if.h>
 #include <net/net_core.h>
-#include <net/lldp.h>
-#include <console/uart_pipe.h>
 #include <net/ethernet.h>
 #include <crc16.h>
 #include <rtt/SEGGER_RTT.h>
@@ -57,6 +53,8 @@
 #define SLIP_ESC_ESC 0335
 
 #define RX_BUFFER_SIZE (CONFIG_ETH_RTT_MTU + 36)
+#define ACTIVE_POLL_COUNT (CONFIG_ETH_POLL_PERIOD_MS \
+				/ CONFIG_ETH_POLL_ACTIVE_PERIOD_MS)
 
 BUILD_ASSERT_MSG(CONFIG_ETH_RTT_CHANNEL < SEGGER_RTT_MAX_NUM_UP_BUFFERS,
 	"RTT channel number used in RTT network driver "
@@ -65,6 +63,7 @@ BUILD_ASSERT_MSG(CONFIG_ETH_RTT_CHANNEL < SEGGER_RTT_MAX_NUM_UP_BUFFERS,
 struct eth_rtt_context {
 	bool init_done;
 	struct net_if *iface;
+	u16_t active_poll_counter;
 	u16_t crc;
 	u8_t mac_addr[6];
 	u8_t rx_buffer[RX_BUFFER_SIZE];
@@ -325,6 +324,7 @@ K_TIMER_DEFINE(eth_rtt_poll_timer, poll_timer_handler, NULL);
 static void poll_work_handler(struct k_work *work)
 {
 	struct eth_rtt_context *context = &context_data;
+	u32_t total = 0;
 	s32_t period = K_MSEC(CONFIG_ETH_POLL_PERIOD_MS);
 	int num;
 
@@ -342,10 +342,17 @@ static void poll_work_handler(struct k_work *work)
 				&context->rx_buffer[context->rx_buffer_length],
 				num);
 			decode_new_slip_data(context, num);
-			period = K_MSEC(CONFIG_ETH_POLL_ACTIVE_PERIOD_MS);
+			total += num;
 		}
 	} while (num > 0);
 
+	if (total > 0) {
+		context->active_poll_counter = ACTIVE_POLL_COUNT;
+		period = K_MSEC(CONFIG_ETH_POLL_ACTIVE_PERIOD_MS);
+	} else if (context->active_poll_counter > 0) {
+		context->active_poll_counter--;
+		period = K_MSEC(CONFIG_ETH_POLL_ACTIVE_PERIOD_MS);
+	}
 	k_timer_start(&eth_rtt_poll_timer, period, K_MSEC(5000));
 }
 
@@ -370,6 +377,7 @@ static void eth_iface_init(struct net_if *iface)
 
 	context->init_done = true;
 	context->iface = iface;
+	context->active_poll_counter = 0;
 
 	bool mac_addr_configured = false;
 
@@ -413,7 +421,7 @@ static void eth_iface_init(struct net_if *iface)
 static enum ethernet_hw_caps eth_capabilities(struct device *dev)
 {
 	ARG_UNUSED(dev);
-	return 0;
+	return (enum ethernet_hw_caps) 0;
 }
 
 static int eth_rtt_init(struct device *dev)
