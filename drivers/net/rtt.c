@@ -375,6 +375,7 @@ static void poll_timer_handler(struct k_timer *dummy)
 
 static void eth_iface_init(struct net_if *iface)
 {
+	int mac_addr_bytes = -1;
 	struct eth_rtt_context *context = net_if_get_device(iface)->driver_data;
 
 	ethernet_init(iface);
@@ -387,17 +388,15 @@ static void eth_iface_init(struct net_if *iface)
 	context->iface = iface;
 	context->active_poll_counter = 0;
 
-	bool mac_addr_configured = false;
-
 #if defined(CONFIG_ETH_RTT_MAC_ADDR)
 	if (CONFIG_ETH_RTT_MAC_ADDR[0] != 0) {
-		mac_addr_configured = (net_bytes_from_str(context->mac_addr,
-			sizeof(context->mac_addr),
-			CONFIG_ETH_RTT_MAC_ADDR) >= 0);
+		mac_addr_bytes = net_bytes_from_str(context->mac_addr,
+						    sizeof(context->mac_addr),
+						    CONFIG_ETH_RTT_MAC_ADDR);
 	}
 #endif
 
-	if (!mac_addr_configured) {
+	if (mac_addr_bytes <= 0) {
 		context->mac_addr[0] = 0x00;
 		context->mac_addr[1] = 0x00;
 		context->mac_addr[2] = 0x5E;
