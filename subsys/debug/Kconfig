@@ -281,6 +281,20 @@ config OPENOCD_SUPPORT
 	  OpenOCD to determine the state of running threads.  (This option
 	  selects CONFIG_THREAD_MONITOR, so all of its caveats are implied.)
 
+config TRACING_CUSTOM
+	bool "Tracing via user implemented backend"
+	select THREAD_MONITOR
+	select TRACING
+	help
+	  Enable system tracing to a user implemented backend.
+
+config TRACING_CUSTOM_INCLUDE
+	string "Header file with user implemented tracing backend"
+	depends on TRACING_CUSTOM
+	help
+	  Specifies header file name that will be included to ``tracing.h`` file.
+	  It contains user implemented backed for tracing.
+
 endmenu
 
 menuconfig THREAD_ANALYZER

@@ -30,6 +30,9 @@
 #elif defined CONFIG_TRACING_TEST
 #include "tracing_test.h"
 
+#elif defined CONFIG_TRACING_CUSTOM
+#include CONFIG_TRACING_CUSTOM_INCLUDE
+
 #else
 
 /**
