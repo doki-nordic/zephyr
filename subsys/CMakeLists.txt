@@ -2,7 +2,9 @@
 
 add_subdirectory(debug)
 add_subdirectory(logging)
+if (NOT CONFIG_BT_RPC_CLIENT)
 add_subdirectory_ifdef(CONFIG_BT                   bluetooth)
+endif()
 add_subdirectory_ifdef(CONFIG_CONSOLE_SUBSYS       console)
 add_subdirectory_ifdef(CONFIG_SHELL                shell)
 add_subdirectory_ifdef(CONFIG_CPLUSPLUS            cpp)
