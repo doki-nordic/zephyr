@@ -106,7 +106,7 @@ config BT_STM32_IPM_RX_STACK_SIZE
 
 config BT_RPMSG_NRF53
 	bool "nRF53 configuration of RPMsg"
-	default y if SOC_NRF5340_CPUAPP
+	default y if SOC_NRF5340_CPUAPP && !BT_RPC_CLIENT
 	depends on BT_RPMSG
 	select IPM
 	select IPM_NRFX
