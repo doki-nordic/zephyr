@@ -22,6 +22,19 @@ config TRACING_CORE
 	  Automatically selected by formats that require the core
 	  tracing infrastructure.
 
+config TRACING_EXTERNAL
+	bool
+	help
+	  Select tracing format implemented by external module.
+
+config TRACING_EXTERNAL_INCLUDE
+	string
+	depends on TRACING_EXTERNAL
+	help
+	  Include file that is an interface for the external tracing module.
+
+if !TRACING_EXTERNAL
+
 choice
 	prompt "Tracing Format"
 	default TRACING_NONE
@@ -62,6 +75,7 @@ config TRACING_TEST
 
 endchoice
 
+endif # !TRACING_EXTERNAL
 
 config TRACING_CTF_TIMESTAMP
 	bool "Enable CTF internal timestamp"
