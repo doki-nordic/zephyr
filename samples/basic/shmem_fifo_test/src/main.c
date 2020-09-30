@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
+#include <stdio.h>
 #include <zephyr.h>
 #include <device.h>
 #include <sys/printk.h>
@@ -22,7 +23,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #define SHM_NODE            DT_CHOSEN(zephyr_ipc_shm)
 #define SHM_BASE_ADDRESS    DT_REG_ADDR(SHM_NODE)
-#define SHM_SIZE            (DT_REG_SIZE(SHM_NODE) & ~7)
+#define SHM_SIZE            ((DT_REG_SIZE(SHM_NODE) / 4) & ~7) // TODO: remove /4
 
 /*
 
@@ -74,7 +75,7 @@ static volatile uint32_t *const rx_read_index = (volatile uint32_t *)SHM_RX_BASE
 static volatile const uint32_t *const rx_write_index = (volatile uint32_t *)SHM_RX_BASE_ADDRESS + 1;
 static volatile const uint32_t *const rx_ack_index = (volatile uint32_t *)SHM_RX_BASE_ADDRESS + 2;
 static const uint32_t *const rx_data = (uint32_t *)SHM_RX_BASE_ADDRESS + 3;
-static const size_t rx_count = SHM_RX_SIZE / ITEM_SIZE;
+static const size_t rx_count = SHM_RX_SIZE / ITEM_SIZE - 3;
 static struct device *rx_ipm_recv;
 static struct device *rx_ipm_ack;
 static void rx_work_handler(struct k_work *work);
@@ -85,7 +86,7 @@ static volatile const uint32_t *const tx_read_index = (volatile uint32_t *)SHM_T
 static volatile uint32_t *const tx_write_index = (volatile uint32_t *)SHM_TX_BASE_ADDRESS + 1;
 static volatile uint32_t *const tx_ack_index = (volatile uint32_t *)SHM_TX_BASE_ADDRESS + 2;
 static uint32_t *const tx_data = (uint32_t *)SHM_TX_BASE_ADDRESS + 3;
-static const size_t tx_count = SHM_TX_SIZE / ITEM_SIZE;
+static const size_t tx_count = SHM_TX_SIZE / ITEM_SIZE - 3;
 static struct device *tx_ipm_send;
 static struct device *tx_ipm_ack;
 static K_SEM_DEFINE(tx_sem, 0, 1);
@@ -94,7 +95,6 @@ static void ipm_send_simple(struct device *dev)
 {
 	ipm_send(dev, 0, 0, NULL, 0);
 }
-
 
 int shmem_tx_send(const uint8_t* data, uint16_t size, uint16_t user_data)
 {
@@ -131,6 +131,7 @@ int shmem_tx_send(const uint8_t* data, uint16_t size, uint16_t user_data)
 			__DMB();
 			/* Skip waiting if something already was consumed. */
 			if (*tx_read_index == read_index) {
+				//LOG_INF("WAITING available=%d, total=%d", available, total_items);
 				k_sem_take(&tx_sem, K_FOREVER);
 			}
 			*tx_ack_index = NO_ACK;
@@ -144,6 +145,7 @@ int shmem_tx_send(const uint8_t* data, uint16_t size, uint16_t user_data)
 	write_index++;
 	if (write_index >= tx_count) {
 		write_index = 0;
+		//LOG_WRN("============================ WRITE CYCLE");
 	}
 
 	/* Write first part of data if buffer cycle occurred. */
@@ -160,6 +162,7 @@ int shmem_tx_send(const uint8_t* data, uint16_t size, uint16_t user_data)
 			}
 			data_items -= tail_items;
 			write_index = 0;
+			//LOG_WRN("============================ WRITE CYCLE");
 		}
 	}
 
@@ -189,7 +192,7 @@ int shmem_fifo_rx_empty()
 	return *rx_read_index == *rx_write_index;
 }
 
-int shmem_fifo_rx_recv(uint8_t* data, size_t size, uint16_t *user_data)
+int shmem_fifo_rx_recv(uint8_t* data, uint16_t size, uint16_t *user_data)
 {
 	uint32_t read_index;
 	uint32_t old_read_index;
@@ -226,6 +229,7 @@ int shmem_fifo_rx_recv(uint8_t* data, size_t size, uint16_t *user_data)
 	read_index++;
 	if (read_index >= rx_count) {
 		read_index = 0;
+		//LOG_WRN("============================ READ CYCLE");
 	}
 	msg_items = (msg_size + (ITEM_SIZE - 1)) / ITEM_SIZE;
 
@@ -243,6 +247,7 @@ int shmem_fifo_rx_recv(uint8_t* data, size_t size, uint16_t *user_data)
 			}
 			msg_items -= tail_items;
 			read_index = 0;
+			//LOG_WRN("============================ READ CYCLE");
 		}
 	}
 
@@ -281,10 +286,82 @@ static void rx_recv_callback(struct device *dev, void *context,
 	k_work_submit(&rx_work);
 }
 
+#if defined(CONFIG_SOC_NRF5340_CPUAPP)
+uint32_t rx_rand = 0x67491643;
+uint32_t tx_rand = 0x23786234;
+#else
+uint32_t rx_rand = 0x23786234;
+uint32_t tx_rand = 0x67491643;
+#endif
+
+uint32_t myrand(uint32_t *x)
+{
+	*x = (*x) * 1664525u + 1013904223u;
+	//printk("%08X\n", *x);
+	return *x >> 16;
+}
+
+void failed()
+{
+	while (1) {
+		k_sleep(K_MSEC(5000));
+	}
+}
+
 static void rx_work_handler(struct k_work *work)
 {
+	int i, k;
+	char line[80];
+	char *ptr = line;
+	uint8_t buf[0x50];
+	uint16_t user_data;
+	int result;
+
+	static uint32_t total = 0;
+	static uint32_t next = 1;
+
 	while (!shmem_fifo_rx_empty()) {
-		shmem_fifo_rx_recv();
+		result = shmem_fifo_rx_recv(buf, sizeof(buf), &user_data);
+		if (result < 0) {
+			LOG_ERR("Error receiving %d, user_data=%d", result, user_data);
+			continue;
+		}
+		//LOG_INF("Received %d bytes, user_data=%d", result, user_data);
+
+		if (result != (myrand(&rx_rand) & 0x3F)) {
+			LOG_ERR("Invalid length");
+			failed();
+		}
+		for (i = 0; i < result; i++) {
+			if (buf[i] != (myrand(&rx_rand) & 0xFF)) {
+				LOG_ERR("Invalid data");
+				failed();
+			}
+		}
+		if (user_data != (myrand(&rx_rand) & 0xFFFF)) {
+			LOG_ERR("Invalid data");
+			failed();
+		}
+		total += result;
+		if (total >= next) {
+			next = total + 1024000;
+			LOG_INF("Recv total %d (%dMB)", total, total / (1024 * 1024));
+		}
+#		if !defined(CONFIG_SOC_NRF5340_CPUAPP)
+		if ((user_data & 0xFFF) == 0) {
+			LOG_WRN("Forcing sleep");
+			k_sleep(K_MSEC(1000));
+		}
+#		endif
+		/*
+		k = 0;
+		while (k < result) {
+			ptr = line;
+			for (i = 0; i < 16 && k < result; i++, k++) {
+				ptr += sprintf(ptr, " %02X", buf[k]);
+			}
+			//LOG_INF("DATA:%s", log_strdup(line));
+		}*/
 	}
 }
 
@@ -335,6 +412,36 @@ int main()
 	if (result != 0) {
 		printk("Init error: %d\n", result);
 		goto end_of_main;
+	}
+
+	uint8_t buf[0x40];
+
+	uint32_t total = 0;
+	uint32_t next = total + 1;
+
+	while (1) {
+		int len = myrand(&tx_rand) & 0x3F;
+		int i;
+		uint16_t user_data;
+		for (i = 0; i < len; i++) {
+			buf[i] = myrand(&tx_rand);
+		}
+		user_data = myrand(&tx_rand);
+		//LOG_INF("Sending  %d bytes, user_data=%d", len, user_data);
+		int result = shmem_tx_send(buf, len, user_data);
+		if (result < 0) {
+			LOG_ERR("Error sending %d", result);
+			failed();
+		} else {
+			LOG_DBG("Send %d", len);			
+		}
+		if ((total & 127) == 0)
+			k_sleep(K_MSEC(1));
+		total += len;
+		if (total >= next) {
+			next = total + 1024000;
+			LOG_INF("Send total %d (%dMB)", total, total / (1024 * 1024));
+		}
 	}
 
 end_of_main:
