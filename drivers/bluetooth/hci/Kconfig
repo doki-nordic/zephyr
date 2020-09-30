@@ -63,6 +63,13 @@ config BT_USERCHAN
 	  The Bluetooth adapter must be powered off in order for Zephyr to
 	  be able to use it.
 
+config BT_SHMEM_NRF53
+	bool "HCI over shared memory FIFO on nRF53"
+	depends on SOC_NRF5340_CPUAPP
+	help
+	  Bluetooth HCI driver for communication with nRF53 network CPU
+	  using FIFO placed in shared memory.
+
 config BT_NO_DRIVER
 	bool "No default HCI driver"
 	help
