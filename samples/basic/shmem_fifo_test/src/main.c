@@ -23,7 +23,7 @@ LOG_MODULE_REGISTER(LOG_MODULE_NAME);
 
 #define SHM_NODE            DT_CHOSEN(zephyr_ipc_shm)
 #define SHM_BASE_ADDRESS    DT_REG_ADDR(SHM_NODE)
-#define SHM_SIZE            ((DT_REG_SIZE(SHM_NODE) / 4) & ~7) // TODO: remove /4
+#define SHM_SIZE            (DT_REG_SIZE(SHM_NODE) & ~7)
 
 /*
 
@@ -78,8 +78,7 @@ static const uint32_t *const rx_data = (uint32_t *)SHM_RX_BASE_ADDRESS + 3;
 static const size_t rx_count = SHM_RX_SIZE / ITEM_SIZE - 3;
 static struct device *rx_ipm_recv;
 static struct device *rx_ipm_ack;
-static void rx_work_handler(struct k_work *work);
-static K_WORK_DEFINE(rx_work, rx_work_handler);
+static K_SEM_DEFINE(rx_sem, 0, 1);
 
 /* TX FIFO */
 static volatile const uint32_t *const tx_read_index = (volatile uint32_t *)SHM_TX_BASE_ADDRESS;
@@ -96,7 +95,7 @@ static void ipm_send_simple(struct device *dev)
 	ipm_send(dev, 0, 0, NULL, 0);
 }
 
-int shmem_tx_send(const uint8_t* data, uint16_t size, uint16_t user_data)
+int shmem_tx_send(const uint8_t* data, uint16_t size, uint16_t oob_data)
 {
 	uint32_t read_index;
 	uint32_t write_index;
@@ -141,7 +140,7 @@ int shmem_tx_send(const uint8_t* data, uint16_t size, uint16_t user_data)
 	} while (available < total_items);
 
 	/* Write header. */
-	tx_data[write_index] = (uint32_t)size | ((uint32_t)user_data << 16);
+	tx_data[write_index] = (uint32_t)size | ((uint32_t)oob_data << 16);
 	write_index++;
 	if (write_index >= tx_count) {
 		write_index = 0;
@@ -187,12 +186,15 @@ int shmem_tx_send(const uint8_t* data, uint16_t size, uint16_t user_data)
 	return 0;
 }
 
-int shmem_fifo_rx_empty()
+void shmem_fifo_rx_wait()
 {
-	return *rx_read_index == *rx_write_index;
+	while (*rx_read_index == *rx_write_index) {
+		k_sem_take(&rx_sem, K_FOREVER);
+		__DSB();
+	}
 }
 
-int shmem_fifo_rx_recv(uint8_t* data, uint16_t size, uint16_t *user_data)
+int shmem_fifo_rx_recv(uint8_t* data, uint16_t size, uint16_t *oob_data)
 {
 	uint32_t read_index;
 	uint32_t old_read_index;
@@ -221,11 +223,11 @@ int shmem_fifo_rx_recv(uint8_t* data, uint16_t size, uint16_t *user_data)
 	header = rx_data[read_index];
 	msg_size = header & 0xFFFF;
 	if (size < msg_size) {
-		*user_data = msg_size;
+		*oob_data = msg_size;
 		return -EINVAL;
 	}
 	result = msg_size;
-	*user_data = header >> 16;
+	*oob_data = header >> 16;
 	read_index++;
 	if (read_index >= rx_count) {
 		read_index = 0;
@@ -272,19 +274,47 @@ int shmem_fifo_rx_recv(uint8_t* data, uint16_t size, uint16_t *user_data)
 	return result;
 }
 
-static void tx_ack_callback(struct device *dev, void *context,
-			    uint32_t id, volatile void *data)
+static void sem_give_callback(struct device *dev, void *context,
+			      uint32_t id, volatile void *data)
 {
-	LOG_DBG("Waiting is done for TX data consumed.");
-	k_sem_give(&tx_sem);
+	LOG_DBG("Received IPM");
+	k_sem_give((struct k_sem *)context);
 }
 
-static void rx_recv_callback(struct device *dev, void *context,
-			     uint32_t id, volatile void *data)
+static int shmem_init()
 {
-	LOG_DBG("Received data.");
-	k_work_submit(&rx_work);
+	/* IPM setup */
+	tx_ipm_send = device_get_binding(IPM_TX_SEND);
+	tx_ipm_ack = device_get_binding(IPM_TX_ACK);
+	rx_ipm_recv = device_get_binding(IPM_RX_RECV);
+	rx_ipm_ack = device_get_binding(IPM_RX_ACK);
+
+	if (!tx_ipm_send || !tx_ipm_ack || !rx_ipm_recv || !rx_ipm_ack) {
+		LOG_ERR("Could IPM device handle");
+		return -ENODEV;
+	}
+
+	ipm_register_callback(tx_ipm_ack, sem_give_callback, &tx_sem);
+	ipm_register_callback(rx_ipm_recv, sem_give_callback, &rx_sem);
+
+	/* Indexes initialization */
+	*tx_write_index = 0;
+	*tx_ack_index = NO_ACK;
+	*rx_read_index = 0;
+	__DSB();
+
+	/* Handshake */
+	LOG_INF("Handshake started");
+	ipm_send_simple(rx_ipm_ack);
+	k_sem_take(&tx_sem, K_FOREVER);
+	ipm_send_simple(rx_ipm_ack);
+	LOG_INF("Handshake done");
+
+	return 0;
 }
+
+static K_THREAD_STACK_DEFINE(rx_thread_stack, 1024); // TODO: configurable
+static struct k_thread rx_thread_data;
 
 #if defined(CONFIG_SOC_NRF5340_CPUAPP)
 uint32_t rx_rand = 0x67491643;
@@ -308,93 +338,65 @@ void failed()
 	}
 }
 
-static void rx_work_handler(struct k_work *work)
+static void rx_handler(uint8_t *buf, int len, uint16_t user_data)
 {
 	int i, k;
 	char line[80];
 	char *ptr = line;
-	uint8_t buf[0x50];
-	uint16_t user_data;
-	int result;
 
 	static uint32_t total = 0;
 	static uint32_t next = 1;
 
-	while (!shmem_fifo_rx_empty()) {
+	if (len != (myrand(&rx_rand) & 0x3F)) {
+		LOG_ERR("Invalid length");
+		failed();
+	}
+	for (i = 0; i < len; i++) {
+		if (buf[i] != (myrand(&rx_rand) & 0xFF)) {
+			LOG_ERR("Invalid data");
+			failed();
+		}
+	}
+	if (user_data != (myrand(&rx_rand) & 0xFFFF)) {
+		LOG_ERR("Invalid data");
+		failed();
+	}
+	total += len;
+	if (total >= next) {
+		next = total + 1024000;
+		LOG_INF("Recv total %d (%dMB)", total, total / (1024 * 1024));
+	}
+#		if !defined(CONFIG_SOC_NRF5340_CPUAPP)
+	if ((user_data & 0xFFF) == 0) {
+		LOG_WRN("Forcing sleep");
+		k_sleep(K_MSEC(1000));
+	}
+#		endif
+	/*
+	k = 0;
+	while (k < len) {
+		ptr = line;
+		for (i = 0; i < 16 && k < len; i++, k++) {
+			ptr += sprintf(ptr, " %02X", buf[k]);
+		}
+		//LOG_INF("DATA:%s", log_strdup(line));
+	}*/
+}
+
+static void rx_thread(void *p1, void *p2, void *p3)
+{
+	do {
+		shmem_fifo_rx_wait();
+		uint8_t buf[0x210];
+		int result;
+		uint16_t user_data;
 		result = shmem_fifo_rx_recv(buf, sizeof(buf), &user_data);
 		if (result < 0) {
 			LOG_ERR("Error receiving %d, user_data=%d", result, user_data);
 			continue;
 		}
-		//LOG_INF("Received %d bytes, user_data=%d", result, user_data);
-
-		if (result != (myrand(&rx_rand) & 0x3F)) {
-			LOG_ERR("Invalid length");
-			failed();
-		}
-		for (i = 0; i < result; i++) {
-			if (buf[i] != (myrand(&rx_rand) & 0xFF)) {
-				LOG_ERR("Invalid data");
-				failed();
-			}
-		}
-		if (user_data != (myrand(&rx_rand) & 0xFFFF)) {
-			LOG_ERR("Invalid data");
-			failed();
-		}
-		total += result;
-		if (total >= next) {
-			next = total + 1024000;
-			LOG_INF("Recv total %d (%dMB)", total, total / (1024 * 1024));
-		}
-#		if !defined(CONFIG_SOC_NRF5340_CPUAPP)
-		if ((user_data & 0xFFF) == 0) {
-			LOG_WRN("Forcing sleep");
-			k_sleep(K_MSEC(1000));
-		}
-#		endif
-		/*
-		k = 0;
-		while (k < result) {
-			ptr = line;
-			for (i = 0; i < 16 && k < result; i++, k++) {
-				ptr += sprintf(ptr, " %02X", buf[k]);
-			}
-			//LOG_INF("DATA:%s", log_strdup(line));
-		}*/
-	}
-}
-
-static int shmem_init()
-{
-	/* IPM setup */
-	tx_ipm_send = device_get_binding(IPM_TX_SEND);
-	tx_ipm_ack = device_get_binding(IPM_TX_ACK);
-	rx_ipm_recv = device_get_binding(IPM_RX_RECV);
-	rx_ipm_ack = device_get_binding(IPM_RX_ACK);
-
-	if (!tx_ipm_send || !tx_ipm_ack || !rx_ipm_recv || !rx_ipm_ack) {
-		LOG_ERR("Could IPM device handle");
-		return -ENODEV;
-	}
-
-	ipm_register_callback(tx_ipm_ack, tx_ack_callback, NULL);
-	ipm_register_callback(rx_ipm_recv, rx_recv_callback, NULL);
-
-	/* Indexes initialization */
-	*tx_write_index = 0;
-	*tx_ack_index = NO_ACK;
-	*rx_read_index = 0;
-	__DSB();
-
-	/* Handshake */
-	LOG_INF("Handshake started");
-	ipm_send_simple(rx_ipm_ack);
-	k_sem_take(&tx_sem, K_FOREVER);
-	ipm_send_simple(rx_ipm_ack);
-	LOG_INF("Handshake done");
-
-	return 0;
+		rx_handler(buf, result, user_data);
+	} while (true);
 }
 
 
@@ -409,12 +411,18 @@ int main()
 
 	result = shmem_init();
 
+	/* Create receive thread */
+	k_thread_create(&rx_thread_data, rx_thread_stack,
+			K_THREAD_STACK_SIZEOF(rx_thread_stack), rx_thread,
+			NULL, NULL, NULL, K_PRIO_COOP(7), 0, K_NO_WAIT); // TODO: priority configurable
+	k_thread_name_set(&rx_thread_data, "HCI shmem RX");
+
 	if (result != 0) {
 		printk("Init error: %d\n", result);
 		goto end_of_main;
 	}
 
-	uint8_t buf[0x40];
+	uint8_t buf[0x200];
 
 	uint32_t total = 0;
 	uint32_t next = total + 1;
