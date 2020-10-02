@@ -21,3 +21,21 @@ if BT_CUSTOM
 endif
 
 endmenu
+
+config BT_SHMEM_NRF53_FIFO
+	bool "Enable shared memory FIFO on nRF53 API"
+	depends on SOC_NRF5340_CPUNET
+	select IPM
+	select IPM_NRFX
+	select IPM_MSG_CH_0_ENABLE
+	select IPM_MSG_CH_0_TX
+	select IPM_MSG_CH_1_ENABLE
+	select IPM_MSG_CH_1_RX
+	select IPM_MSG_CH_2_ENABLE
+	select IPM_MSG_CH_2_RX
+	select IPM_MSG_CH_3_ENABLE
+	select IPM_MSG_CH_3_TX
+	help
+	  Enable shared memory FIFO API to communicate with "HCI over shared
+	  memory FIFO on nRF53" driver. This API is needed to implement
+	  controller side of HCI.

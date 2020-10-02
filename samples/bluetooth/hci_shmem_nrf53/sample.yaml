@@ -1,0 +1,8 @@
+sample:
+  description: TODO.
+  name: Bluetooth HCI SHMEM nRF53
+tests:
+  sample.bluetooth.hci_shmem_nrf53:
+    harness: bluetooth
+    platform_whitelist: nrf5340pdk_nrf5340_cpunet
+    tags: bluetooth

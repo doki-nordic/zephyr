@@ -7,3 +7,8 @@ zephyr_sources_ifdef(CONFIG_BT_RPMSG	rpmsg.c)
 zephyr_sources_ifdef(CONFIG_BT_RPMSG_NRF53	rpmsg_nrf53.c)
 zephyr_sources_ifdef(CONFIG_BT_STM32_IPM	ipm_stm32wb.c)
 zephyr_sources_ifdef(CONFIG_BT_USERCHAN userchan.c)
+
+if(CONFIG_BT_SHMEM_NRF53 OR CONFIG_BT_SHMEM_NRF53_FIFO)
+	zephyr_include_directories_ifdef(CONFIG_BT_SHMEM_NRF53_FIFO .)
+	zephyr_sources(shmem_nrf53.c)
+endif()

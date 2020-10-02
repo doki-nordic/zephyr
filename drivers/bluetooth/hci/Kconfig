@@ -66,6 +66,17 @@ config BT_USERCHAN
 config BT_SHMEM_NRF53
 	bool "HCI over shared memory FIFO on nRF53"
 	depends on SOC_NRF5340_CPUAPP
+	select IPM
+	select IPM_NRFX
+	select IPM_MSG_CH_0_ENABLE
+	select IPM_MSG_CH_0_RX
+	select IPM_MSG_CH_1_ENABLE
+	select IPM_MSG_CH_1_TX
+	select IPM_MSG_CH_2_ENABLE
+	select IPM_MSG_CH_2_TX
+	select IPM_MSG_CH_3_ENABLE
+	select IPM_MSG_CH_3_RX
+	select BOARD_ENABLE_CPUNET
 	help
 	  Bluetooth HCI driver for communication with nRF53 network CPU
 	  using FIFO placed in shared memory.
