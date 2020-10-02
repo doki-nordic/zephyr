@@ -18,6 +18,8 @@
 #include <bluetooth/hci.h>
 #include <drivers/bluetooth/hci_driver.h>
 
+BUILD_ASSERT(IS_ENABLED(CONFIG_BT_RECV_IS_RX_THREAD), "CONFIG_BT_RECV_IS_RX_THREAD must be enabled");
+
 #define LOG_LEVEL LOG_LEVEL_DEBUG // TODO: make it configurable
 #define LOG_MODULE_NAME hci_shmem_nrf53
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
