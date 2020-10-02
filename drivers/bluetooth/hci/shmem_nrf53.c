@@ -18,8 +18,6 @@
 #include <bluetooth/hci.h>
 #include <drivers/bluetooth/hci_driver.h>
 
-BUILD_ASSERT(IS_ENABLED(CONFIG_BT_RECV_IS_RX_THREAD), "CONFIG_BT_RECV_IS_RX_THREAD must be enabled");
-
 #define LOG_LEVEL LOG_LEVEL_DEBUG // TODO: make it configurable
 #define LOG_MODULE_NAME hci_shmem_nrf53
 LOG_MODULE_REGISTER(LOG_MODULE_NAME);
@@ -363,7 +361,7 @@ int shmem_init()
 #define DRV_SHMEM_EVT 0x0004
 #define DRV_SHMEM_EVT_DISCARDABLE 0x0005
 
-static K_THREAD_STACK_DEFINE(rx_thread_stack, 2048); // TODO: configurable
+static K_THREAD_STACK_DEFINE(rx_thread_stack, 1024); // TODO: configurable
 static struct k_thread rx_thread_data;
 
 BUILD_ASSERT(!IS_ENABLED(CONFIG_BT_HCI_RAW_H4), "HCI H:4 cannot be enabled!");
