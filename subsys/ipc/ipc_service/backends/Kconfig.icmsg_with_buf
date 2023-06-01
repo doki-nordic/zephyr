@@ -1,0 +1,20 @@
+# Copyright (c) 2023 Nordic Semiconductor ASA
+# SPDX-License-Identifier: Apache-2.0
+
+if IPC_SERVICE_BACKEND_ICMSG_WITH_BUF
+
+config IPC_SERVICE_BACKEND_ICMSG_WITH_BUF_NUM_EP
+	int "Endpoints number"
+	range 1 251
+	default 4
+	help
+	  Number of endpoints supported by the ICMsg with buffers IPC service
+	  backend. The number of endpoints are applied to all the instances,
+	  so this value should be maximum number among all the instances.
+
+module = IPC_SERVICE_BACKEND_ICMSG_WITH_BUF
+module-str = ICMSG backend with separate buffers
+module-help = Sets log level for ICMsg backend with buffers
+source "subsys/logging/Kconfig.template.log_config"
+
+endif # IPC_SERVICE_BACKEND_ICMSG_WITH_BUF
