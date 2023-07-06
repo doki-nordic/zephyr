@@ -1081,7 +1081,7 @@ static int backend_init(const struct device *instance)
 	k_mutex_init(&dev_data->mutex);
 	k_work_init(&dev_data->ep_bound_work, ept_bound_process);
 	k_sem_init(&dev_data->block_wait_sem, 0, 1);
-	memset(&dev_data->ept, 0xFF, sizeof(dev_data->ept));
+	memset(&dev_data->waiting_bound, 0xFF, sizeof(dev_data->waiting_bound));
 	memset(&dev_data->ept_map, EPT_ADDR_INVALID, sizeof(dev_data->ept_map));
 	return 0;
 }
