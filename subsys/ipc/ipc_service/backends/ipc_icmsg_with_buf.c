@@ -40,63 +40,49 @@
  * ICMsg messages
  * --------------
  *
- * ICMsg is used to send and receive small 2-byte messages. The first byte is an endpoint
- * address or a message type and the second is the block index where the relevant buffer
- * starts.
+ * ICMsg is used to send and receive small 3-byte messages.
  *
  *  - Send data
- *    | receiver endpoint address | block index |
- *    This message is used to send data buffer to specific endpoint. The same endpoint
- *    may have different addresses on different sides, so the message contains "receiver"
- *    address.
+ *    | MSG_DATA | endpoint address | block index |
+ *    This message is used to send data buffer to specific endpoint.
  *
  *  - Release data
- *    | MSG_RELEASE_DATA | block index |
+ *    | MSG_RELEASE_DATA | 0 | block index |
  *    This message is a response to the "Send data" message and it is used to inform that
- *    specific buffer is not used anymore and can be released.
+ *    specific buffer is not used anymore and can be released. Endpoint addresses does
+ *    not matter here, so it is zero.
  *
  *  - Bound endpoint
- *    | MSG_BOUND | block index |
- *    This message starts the bounding of the endpoint. The buffer contains the sender
- *    endpoint address in the first byte followed by the null-terminated endpoint name.
+ *    | MSG_BOUND | endpoint address | block index |
+ *    This message starts the bounding of the endpoint. The buffer contains a
+ *    null-terminated endpoint name.
  *
  *  - Release bound endpoint
- *    | MSG_RELEASE_BOUND | block index |
+ *    | MSG_RELEASE_BOUND | endpoint address | block index |
  *    This message is a response to the "Bound endpoint" message and it is used to inform
- *    that a specific buffer is not used anymore and a specific endpoint can now receive
- *    data.
+ *    that a specific buffer is not used anymore and a specific endpoint bounded and now
+ *    can now receive data.
  */
-
-#include <zephyr/logging/log.h>
-LOG_MODULE_REGISTER(ipc_svc_icmsg_w_buf,
-		    CONFIG_IPC_SERVICE_BACKEND_ICMSG_WITH_BUF_LOG_LEVEL);
 
 #include <string.h>
 
+#include <zephyr/logging/log.h>
 #include <zephyr/device.h>
 #include <zephyr/sys/bitarray.h>
 #include <zephyr/ipc/icmsg.h>
 #include <zephyr/ipc/ipc_service_backend.h>
 #include <zephyr/cache.h>
 
+LOG_MODULE_REGISTER(ipc_svc_icmsg_w_buf,
+		    CONFIG_IPC_SERVICE_BACKEND_ICMSG_WITH_BUF_LOG_LEVEL);
+
 #define DT_DRV_COMPAT zephyr_ipc_icmsg_with_buf
 
-#define NUM_EP CONFIG_IPC_SERVICE_BACKEND_ICMSG_WITH_BUF_NUM_EP
+/** Allowed number of endpoints. */
+#define NUM_EPT CONFIG_IPC_SERVICE_BACKEND_ICMSG_WITH_BUF_NUM_EP
 
 /** Special endpoint address indicating invalid (or empty) entry. */
 #define EPT_ADDR_INVALID 0xFF
-
-/** Message type for releasing data buffers. */
-#define MSG_RELEASE_DATA 0xFE
-
-/** Message type for endpoint bounding message. */
-#define MSG_BOUND 0xFD
-
-/** Message type for releasing endpoint bound message buffer. */
-#define MSG_RELEASE_BOUND 0xFC
-
-/** Maximum value of endpoint address. */
-#define EPT_ADDR_MAX 0xFB
 
 /** Special value for empty entry in bound message waiting table. */
 #define WAITING_BOUND_MSG_EMPTY 0xFFFF
@@ -113,6 +99,16 @@ LOG_MODULE_REGISTER(ipc_svc_icmsg_w_buf,
 /** Size of the header (size field) of the block. */
 #define BLOCK_HEADER_SIZE (offsetof(struct block_header, data))
 
+/** Flag indicating that ICMsg was bounded for this instance. */
+#define FLAG_ICMSG_BOUNDED (1 << 31)
+
+enum msg_type {
+	MSG_DATA = 0,		/* Data message. */
+	MSG_RELEASE_DATA,	/* Release data buffer message. */
+	MSG_BOUND,		/* Endpoint bounding message. */
+	MSG_RELEASE_BOUND,	/* Release endpoint bound message. */
+};
+
 enum ept_bounding_state {
 	EPT_UNCONFIGURED = 0,	/* Endpoint in not configured (initial state). */
 	EPT_CONFIGURED,		/* Endpoint is configured, waiting for work queue to
@@ -120,7 +116,7 @@ enum ept_bounding_state {
 				 */
 	EPT_BOUNDING,		/* Only on initiator. Bound message was send,
 				 * but bound callback was not called yet, because
-				 * we are waiting for any incoming message. */
+				 * we are waiting for any incoming messages. */
 	EPT_READY,		/* Bounding is done. Bound callback was called. */
 };
 
@@ -147,37 +143,32 @@ struct ept_data {
 	uint8_t addr;			/* Endpoint address. On initiator, equals index in
 					 * the endpoints array.
 					 */
-	uint16_t waiting_bound_msg;	/* The "bound" messages waiting to be
-					 * registered locally. The message may be
-					 * associated with any endpoint, not necessarily
-					 * this one.
-					 */
 };
 
 struct backend_data {
 	const struct icmsg_with_buf_config *conf; /* Backend instance config. */
 	struct icmsg_data_t icmsg_data;	/* ICMsg data. */
-	struct k_mutex mutex;		/* Mutex to protect common data and resources.*/
+	struct k_mutex mutex;		/* Mutex to protect: ICMsg send call and
+					 * waiting_bound field.
+					 */
 	struct k_work ep_bound_work;	/* Work item for bounding processing. */
 	struct k_sem block_wait_sem;	/* Semaphore for waiting for free blocks. */
-	struct ept_data ept[NUM_EP];	/* Array of registered endpoints. */
-	uint8_t ept_map[NUM_EP];	/* Array that maps endpoint address to index. */ // TODO: Move it to ept array
-	uint8_t ept_count;		/* Number of registered endpoints. */
-	bool icmsg_bounded;		/* ISmsg was bounded already. */
+	struct ept_data ept[NUM_EPT];	/* Array of registered endpoints. */
+	uint8_t ept_map[NUM_EPT];	/* Array that maps endpoint address to index. */
+	uint16_t waiting_bound[NUM_EPT];/* The bound messages waiting to be registered. */
+	atomic_t flags;			/* Flags */
 	bool is_initiator;		/* This side has an initiator role. */
 };
 
 struct block_header {
-	size_t size;	/* Size of the data field. */
-	uint8_t data[];	/* Buffer data. */
+	volatile size_t size;	/* Size of the data field. It must be volatile, because
+				 * when this value is read and validated for security
+				 * reasons, compiler cannot generate code that reads
+				 * it again after validation. */
+	uint8_t data[];		/* Buffer data. */
 };
 
-struct ept_bound_msg {
-	uint8_t ept_addr;	/* Sender address of the endpoint. */
-	char name[];		/* Name of the endpoint. */
-};
-
-BUILD_ASSERT(EPT_ADDR_MAX + 1 >= NUM_EP, "Too many endpoints");
+BUILD_ASSERT(NUM_EPT <= EPT_ADDR_INVALID, "Too many endpoints");
 
 /**
  * Calculate pointer to block from its index and channel configuration (RX or TX).
@@ -457,11 +448,11 @@ static int release_tx_buffer(struct backend_data *dev_data, const uint8_t *buffe
  * Send data with ICMsg with mutex locked. Mutex must be locked because ICMsg may return
  * error on concurrent invocations even when there is enough space in queue.
  */
-static int icmsg_send_wrapper(struct backend_data *dev_data, uint8_t addr_or_msg_type,
-			      uint8_t tx_block_index)
+static int icmsg_send_wrapper(struct backend_data *dev_data, enum msg_type msg_type,
+			      uint8_t ept_addr, uint8_t block_index)
 {
 	const struct icmsg_with_buf_config *conf = dev_data->conf;
-	uint8_t message[2] = { addr_or_msg_type, tx_block_index };
+	uint8_t message[3] = { msg_type, ept_addr, block_index };
 	int r;
 
 	k_mutex_lock(&dev_data->mutex, K_FOREVER);
@@ -483,7 +474,7 @@ static int icmsg_send_wrapper(struct backend_data *dev_data, uint8_t addr_or_msg
  * @return	zero or ICMsg send error
  */
 static int send_release(struct backend_data *dev_data, const uint8_t *buffer,
-			uint8_t msg_type)
+			enum msg_type msg_type, uint8_t ept_addr)
 {
 	const struct icmsg_with_buf_config *conf = dev_data->conf;
 	int rx_block_index;
@@ -493,7 +484,7 @@ static int send_release(struct backend_data *dev_data, const uint8_t *buffer,
 		return rx_block_index;
 	}
 
-	return icmsg_send_wrapper(dev_data, msg_type, rx_block_index);
+	return icmsg_send_wrapper(dev_data, msg_type, ept_addr, rx_block_index);
 }
 
 /**
@@ -504,12 +495,12 @@ static int send_release(struct backend_data *dev_data, const uint8_t *buffer,
  *				so caller is responsible for passing only valid index.
  * @param[in] size		Actual size of the data, can be smaller than allocated,
  *				but it cannot change number of required blocks.
- * @param[in] remote_addr	Remote endpoints address
+ * @param[in] ept_addr		Endpoints address
  *
  * @return			O or negative error code
  */
-static int send_block(struct backend_data *dev_data, size_t tx_block_index, size_t size,
-		      uint8_t remote_addr)
+static int send_block(struct backend_data *dev_data, enum msg_type msg_type,
+		      uint8_t ept_addr, size_t tx_block_index, size_t size)
 {
 	struct block_header *block;
 	int r;
@@ -520,7 +511,7 @@ static int send_block(struct backend_data *dev_data, size_t tx_block_index, size
 	__sync_synchronize();
 	sys_cache_data_flush_range(block, size + BLOCK_HEADER_SIZE);
 
-	r = icmsg_send_wrapper(dev_data, remote_addr, tx_block_index);
+	r = icmsg_send_wrapper(dev_data, msg_type, ept_addr, tx_block_index);
 
 	if (r < 0) {
 		release_tx_blocks(dev_data, tx_block_index, size, -1);
@@ -544,7 +535,6 @@ static int find_ept_by_name(struct backend_data *dev_data, const char *name)
 	const char *buffer_end = (const char *)rx_conf->blocks_ptr +
 				 rx_conf->block_count * rx_conf->block_size;
 	struct ept_data *ept;
-	enum ept_bounding_state state;
 	size_t name_size;
 	size_t i;
 
@@ -554,14 +544,11 @@ static int find_ept_by_name(struct backend_data *dev_data, const char *name)
 	 */
 	name_size = strnlen(name, buffer_end - name - 1) + 1;
 
-	for (i = 0; i < NUM_EP; i++) {
+	for (i = 0; i < NUM_EPT; i++) {
 		ept = &dev_data->ept[i];
-		state = atomic_get(&ept->state);
-		if (state == EPT_CONFIGURED &&
+		if (atomic_get(&ept->state) == EPT_CONFIGURED &&
 		    strncmp(ept->cfg->name, name, name_size) == 0) {
 			return i;
-		} else if (state == EPT_UNCONFIGURED) {
-			break;
 		}
 	}
 
@@ -579,45 +566,36 @@ static int find_ept_by_name(struct backend_data *dev_data, const char *name)
  * @retval 1	match found and processing was successful
  * @retval < 0	error occurred during processing
  */
-static int match_bound_msg(struct backend_data *dev_data, size_t rx_block_index)
+static int match_bound_msg(struct backend_data *dev_data, size_t rx_block_index, uint8_t ept_addr)
 {
 	const struct icmsg_with_buf_config *conf = dev_data->conf;
 	uint8_t *buffer;
-	struct ept_bound_msg *msg;
 	int ept_index;
 	struct ept_data *ept;
-	struct block_header *block;
-	int r = 0;
+	int r;
 	bool valid_state;
 
-	block = block_from_index(&conf->rx, rx_block_index);
-	buffer = block->data;
-	msg = (struct ept_bound_msg *)buffer;
+	buffer = block_from_index(&conf->rx, rx_block_index)->data;
 
-	if (msg->ept_addr >= NUM_EP) {
-		LOG_ERR("Initiator endpoint address %d out of range, max is %d", msg->ept_addr, NUM_EP - 1);
-		return -EINVAL;
-	}
-
-	ept_index = find_ept_by_name(dev_data, msg->name);
+	ept_index = find_ept_by_name(dev_data, buffer);
 	if (ept_index < 0) {
 		return 0;
 	}
 
 	ept = &dev_data->ept[ept_index];
+	ept->addr = ept_addr;
+	dev_data->ept_map[ept->addr] = ept_index;
 	valid_state = atomic_cas(&ept->state, EPT_CONFIGURED, EPT_READY);
 	if (!valid_state) {
-		LOG_ERR("Unexpected bounding from remote on endpoint %d", msg->ept_addr);
+		LOG_ERR("Unexpected bounding from remote on endpoint %d", ept_addr);
 		return -EINVAL;
 	}
-	ept->addr = msg->ept_addr;
-	dev_data->ept_map[ept->addr] = ept_index;
 
 	k_mutex_unlock(&dev_data->mutex);
 	if (ept->cfg->cb.bound != NULL) {
 		ept->cfg->cb.bound(ept->cfg->priv);
 	}
-	r = send_release(dev_data, buffer, MSG_RELEASE_BOUND);
+	r = send_release(dev_data, buffer, MSG_RELEASE_BOUND, ept_addr);
 	k_mutex_lock(&dev_data->mutex, K_FOREVER);
 
 	if (r < 0) {
@@ -639,17 +617,14 @@ static int send_bound_message(struct backend_data *dev_data, struct ept_data *ep
 	size_t msg_len;
 	uint32_t alloc_size;
 	uint8_t *buffer;
-	struct ept_bound_msg *msg;
 	int r;
 
-	msg_len = offsetof(struct ept_bound_msg, name) + strlen(ept->cfg->name) + 1;
+	msg_len = strlen(ept->cfg->name) + 1;
 	alloc_size = msg_len;
 	r = alloc_tx_buffer(dev_data, &alloc_size, &buffer, K_FOREVER);
 	if (r >= 0) {
-		msg = (struct ept_bound_msg *)buffer;
-		msg->ept_addr = ept->local_addr;
-		strcpy(msg->name, ept->cfg->name);
-		r = send_block(dev_data, r, msg_len, MSG_BOUND);
+		strcpy(buffer, ept->cfg->name);
+		r = send_block(dev_data, MSG_BOUND, ept->addr, r, msg_len);
 	}
 
 	return r;
@@ -676,49 +651,39 @@ static void ept_bound_process(struct k_work *item)
 	int r = 0;
 	bool matching_state;
 
-	k_mutex_lock(&dev_data->mutex, K_FOREVER);
-
 	/* Skip processing if ICMsg was not bounded yet. */
-	if (!dev_data->icmsg_bounded) {
-		goto exit;
+	if (!(atomic_get(&dev_data->flags) & FLAG_ICMSG_BOUNDED)) {
+		return;
 	}
 
 	if (dev_data->is_initiator) {
 		/* Initiator just sends bound message after endpoint was registered. */
-		for (i = 0; i < dev_data->ept_count; i++) {
+		for (i = 0; i < NUM_EPT; i++) {
 			ept = &dev_data->ept[i];
 			matching_state = atomic_cas(&ept->state, EPT_CONFIGURED, EPT_BOUNDING);
 			if (matching_state) {
-				k_mutex_unlock(&dev_data->mutex);
 				r = send_bound_message(dev_data, ept);
-				k_mutex_lock(&dev_data->mutex, K_FOREVER);
 				if (r < 0) {
 					atomic_set(&ept->state, EPT_UNCONFIGURED);
-					goto exit;
+					LOG_ERR("Failed to send bound message, err %d", r);
 				}
 			}
 		}
 	} else {
 		/* Walk over all waiting bound messages and match to local endpoints. */
-		for (i = 0; i < NUM_EP; i++) {
-			ept = &dev_data->ept[i];
-			if (ept->waiting_bound_msg != WAITING_BOUND_MSG_EMPTY) {
-				r = match_bound_msg(dev_data, ept->waiting_bound_msg);
+		k_mutex_lock(&dev_data->mutex, K_FOREVER);
+		for (i = 0; i < NUM_EPT; i++) {
+			if (dev_data->waiting_bound[i] != WAITING_BOUND_MSG_EMPTY) {
+				r = match_bound_msg(dev_data, dev_data->waiting_bound[i], i);
 				if (r != 0) {
-					ept->waiting_bound_msg = WAITING_BOUND_MSG_EMPTY;
+					dev_data->waiting_bound[i] = WAITING_BOUND_MSG_EMPTY;
 					if (r < 0) {
-						goto exit;
+						LOG_ERR("Failed to process bounding, err %d", r);
 					}
 				}
 			}
 		}
-	}
-
-exit:
-	k_mutex_unlock(&dev_data->mutex);
-	if (r < 0) {
-		schedule_ept_bound_process(dev_data);
-		LOG_ERR("Failed to process bounding, err %d", r);
+		k_mutex_unlock(&dev_data->mutex);
 	}
 }
 
@@ -727,7 +692,7 @@ static struct ept_data *get_ept_and_rx_validate(struct backend_data *dev_data, i
 	struct ept_data *ept;
 	enum ept_bounding_state state;
 
-	if (ept_addr >= NUM_EP || dev_data->ept_map[ept_addr] >= NUM_EP) {
+	if (ept_addr >= NUM_EPT || dev_data->ept_map[ept_addr] >= NUM_EPT) {
 		LOG_ERR("Received invalid endpoint addr %d", ept_addr);
 		return NULL;
 	}
@@ -756,7 +721,7 @@ static struct ept_data *get_ept_and_rx_validate(struct backend_data *dev_data, i
  * Data message received.
  */
 static int received_data(struct backend_data *dev_data, size_t rx_block_index,
-			 int ept_addr)
+			 int ept_addr) // TODO: clean data types
 {
 	const struct icmsg_with_buf_config *conf = dev_data->conf;
 	uint8_t *buffer;
@@ -782,7 +747,7 @@ static int received_data(struct backend_data *dev_data, size_t rx_block_index,
 	/* If the bit is still cleared, request release of the buffer. */
 	sys_bitarray_test_bit(conf->rx_hold_bitmap, rx_block_index, &bit_val);
 	if (!bit_val) {
-		send_release(dev_data, buffer, MSG_RELEASE_DATA);
+		send_release(dev_data, buffer, MSG_RELEASE_DATA, 0);
 	}
 
 	return 0;
@@ -792,30 +757,28 @@ static int received_data(struct backend_data *dev_data, size_t rx_block_index,
  * Release data message received.
  */
 static int received_release_data(struct backend_data *dev_data, size_t tx_block_index,
-				 bool is_release_bound)
+				 uint8_t ept_addr)
 {
 	const struct icmsg_with_buf_config *conf = dev_data->conf;
 	uint8_t *buffer;
-	struct ept_bound_msg *msg;
 	struct ept_data *ept;
 	size_t size;
-	uint8_t ept_addr;
 	int r;
 
+	/* Validate */
 	buffer = buffer_from_index_validate(&conf->tx, tx_block_index, &size, false);
 	if (buffer == NULL) {
 		return -EINVAL;
 	}
 
-	msg = (struct ept_bound_msg *)buffer;
-	ept_addr = msg->ept_addr;
-
+	/* Release */
 	r = release_tx_blocks(dev_data, tx_block_index, size, -1);
 	if (r < 0) {
 		return r;
 	}
 
-	if (is_release_bound) {
+	/* When releasing bound message, validate RX state of the endpoint. */
+	if (ept_addr != EPT_ADDR_INVALID) {
 		ept = get_ept_and_rx_validate(dev_data, ept_addr);
 		if (ept == NULL) {
 			r = -EINVAL;
@@ -828,41 +791,28 @@ static int received_release_data(struct backend_data *dev_data, size_t tx_block_
 /**
  * Bound endpoint message received.
  */
-static int received_bound(struct backend_data *dev_data, size_t rx_block_index)
+static int received_bound(struct backend_data *dev_data, size_t rx_block_index, uint8_t ept_addr)
 {
 	const struct icmsg_with_buf_config *conf = dev_data->conf;
 	size_t size;
 	uint8_t *buffer;
-	size_t i;
-	int r = -ENOMEM;
 
+	/* Validate */
 	buffer = buffer_from_index_validate(&conf->rx, rx_block_index, &size, true);
 	if (buffer == NULL) {
 		LOG_ERR("Received invalid block index %d", rx_block_index);
 		return -EINVAL;
 	}
 
+	/* Put message to waiting array. */
 	k_mutex_lock(&dev_data->mutex, K_FOREVER);
-
-	/* Find empty entry in waiting list and put this block to it. */
-	for (i = 0; i < NUM_EP; i++) {
-		if (dev_data->ept[i].waiting_bound_msg == WAITING_BOUND_MSG_EMPTY) {
-			dev_data->ept[i].waiting_bound_msg = rx_block_index;
-			r = 0;
-			break;
-		}
-	}
-
+	dev_data->waiting_bound[ept_addr] = rx_block_index;
 	k_mutex_unlock(&dev_data->mutex);
 
 	/* Schedule processing the message */
 	schedule_ept_bound_process(dev_data);
 
-	if (r < 0) {
-		LOG_ERR("Too many remote endpoints");
-	}
-
-	return r;
+	return 0;
 }
 
 /**
@@ -878,30 +828,43 @@ static void received(const void *data, size_t len, void *priv)
 	const struct device *instance = priv;
 	struct backend_data *dev_data = instance->data;
 	const uint8_t *message = (const uint8_t *)data;
-	size_t addr_or_msg_type;
-	size_t block_index = 0;
-	int r;
+	enum msg_type msg_type;
+	size_t ept_addr;
+	size_t block_index;
+	int r = 0;
 
-	if (len != 2) {
+	/* Allow messages longer than 3 bytes, e.g. for future protocol versions. */
+	if (len < 3) {
 		r = -EINVAL;
 		goto exit;
 	}
 
-	addr_or_msg_type = message[0];
-	block_index = message[1];
+	msg_type = (enum msg_type) message[0];
+	ept_addr = message[1];
+	block_index = message[2];
 
-	switch (addr_or_msg_type) {
-	case MSG_RELEASE_BOUND:
-		r = received_release_data(dev_data, block_index, true);
-		break;
+	if (ept_addr >= NUM_EPT) {
+		r = -EINVAL;
+		goto exit;
+	}
+
+	switch (msg_type) {
 	case MSG_RELEASE_DATA:
-		r = received_release_data(dev_data, block_index, false);
+		ept_addr = EPT_ADDR_INVALID;
+		/* Fallback to next case. */
+	case MSG_RELEASE_BOUND:
+		r = received_release_data(dev_data, block_index, ept_addr);
 		break;
 	case MSG_BOUND:
-		r = received_bound(dev_data, block_index);
+		r = received_bound(dev_data, block_index, ept_addr);
+		break;
+	case MSG_DATA:
+		r = received_data(dev_data, block_index, ept_addr);
 		break;
 	default:
-		r = received_data(dev_data, block_index, addr_or_msg_type);
+		/* Silently ignore other messages types. They can be used in future
+		 * protocol version.
+		 */
 		break;
 	}
 
@@ -920,9 +883,7 @@ static void bound(void *priv)
 	struct backend_data *dev_data = instance->data;
 
 	/* Set flag that ICMsg is bounded and now, endpoint bounding may start. */
-	k_mutex_lock(&dev_data->mutex, K_FOREVER);
-	dev_data->icmsg_bounded = true;
-	k_mutex_unlock(&dev_data->mutex);
+	atomic_or(&dev_data->flags, FLAG_ICMSG_BOUNDED);
 	schedule_ept_bound_process(dev_data);
 }
 
@@ -940,7 +901,8 @@ static int open(const struct device *instance)
 		.error = NULL,
 	};
 
-	LOG_DBG("Open instance 0x%08X", (uint32_t)instance);
+	LOG_DBG("Open instance 0x%08X, initiator=%d", (uint32_t)instance,
+		dev_data->is_initiator ? 1 : 0);
 	LOG_DBG("  ICMsg, TX %d at 0x%08X, RX %d at 0x%08X",
 		(uint32_t)conf->icmsg_config.tx_shm_size,
 		(uint32_t)conf->icmsg_config.tx_shm_addr,
@@ -985,7 +947,7 @@ static int send(const struct device *instance, void *token, const void *msg, siz
 	memcpy(buffer, msg, len);
 
 	/* Send data message. */
-	return send_block(dev_data, r, len, ept->remote_addr);
+	return send_block(dev_data, MSG_DATA, ept->addr, r, len);
 }
 
 /**
@@ -996,27 +958,25 @@ static int register_ept(const struct device *instance, void **token,
 {
 	struct backend_data *dev_data = instance->data;
 	struct ept_data *ept = NULL;
+	int ept_index;
 	int r = 0;
 
-	k_mutex_lock(&dev_data->mutex, K_FOREVER);
-
-	/* Add new endpoint. */
-	if (dev_data->ept_count < NUM_EP) {
-		ept = &dev_data->ept[dev_data->ept_count];
-		ept->cfg = cfg;
-		if (dev_data->is_initiator) {
-			ept->addr = dev_data->ept_count;
-			dev_data->ept_map[ept->addr] = ept->addr;
-		}
-		atomic_set(&ept->state, EPT_CONFIGURED);
-		dev_data->ept_count++;
-	} else {
-		r = -ENOMEM;
+	/* Reserve new endpoint index. */
+	ept_index = atomic_inc(&dev_data->flags);
+	if (ept_index >= NUM_EPT) {
 		LOG_ERR("Too many endpoints");
 		__ASSERT_NO_MSG(false);
+		return -ENOMEM;
 	}
 
-	k_mutex_unlock(&dev_data->mutex);
+	/* Add new endpoint. */
+	ept = &dev_data->ept[ept_index];
+	ept->cfg = cfg;
+	if (dev_data->is_initiator) {
+		ept->addr = ept_index;
+		dev_data->ept_map[ept->addr] = ept->addr;
+	}
+	atomic_set(&ept->state, EPT_CONFIGURED);
 
 	/* Keep endpoint address in token. */
 	*token = ept;
@@ -1080,7 +1040,7 @@ static int send_nocopy(const struct device *instance, void *token, const void *d
 		return r;
 	}
 
-	return send_block(dev_data, r, len, ept->remote_addr);
+	return send_block(dev_data, MSG_DATA, ept->addr, r, len);
 }
 
 /**
@@ -1105,7 +1065,7 @@ static int release_rx_buffer(const struct device *instance, void *token, void *d
 {
 	struct backend_data *dev_data = instance->data;
 
-	return send_release(dev_data, (uint8_t *)data, MSG_RELEASE_DATA);
+	return send_release(dev_data, (uint8_t *)data, MSG_RELEASE_DATA, 0);
 }
 
 /**
