@@ -258,7 +258,7 @@ static void ipc1_entry(void *dummy0, void *dummy1, void *dummy2)
 			printk("get_tx_buffer(%u) failed with ret %d\n", sizeof(message), ret);
 			break;
 		}
-		if (tx_buffer_size != sizeof(message)) {
+		if (tx_buffer_size < sizeof(message)) {
 			printk("get_tx_buffer modified buffer size to unexpected value %u\n",
 					tx_buffer_size);
 			break;
@@ -266,7 +266,7 @@ static void ipc1_entry(void *dummy0, void *dummy1, void *dummy2)
 
 		*((uint8_t *) tx_buffer) = message;
 
-		ret = ipc_service_send_nocopy(&ipc1_ept, tx_buffer, tx_buffer_size);
+		ret = ipc_service_send_nocopy(&ipc1_ept, tx_buffer, sizeof(message));
 		if (ret < 0) {
 			printk("send_message_nocopy(%u) failed with ret %d\n", message, ret);
 			break;
