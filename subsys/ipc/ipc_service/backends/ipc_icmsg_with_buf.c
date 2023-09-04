@@ -84,6 +84,8 @@
 #include <zephyr/ipc/ipc_service_backend.h>
 #include <zephyr/cache.h>
 
+#include "cache_emu.h"
+
 LOG_MODULE_REGISTER(ipc_svc_icmsg_w_buf,
 		    CONFIG_IPC_SERVICE_BACKEND_ICMSG_WITH_BUF_LOG_LEVEL);
 
@@ -536,6 +538,8 @@ static int send_block(struct backend_data *dev_data, enum msg_type msg_type,
 	struct block_header *block;
 	int r;
 
+	random_cache_oper();
+
 	block = block_from_index(&dev_data->conf->tx, tx_block_index);
 
 	block->size = size;
@@ -546,6 +550,8 @@ static int send_block(struct backend_data *dev_data, enum msg_type msg_type,
 	if (r < 0) {
 		release_tx_blocks(dev_data, tx_block_index, size, -1);
 	}
+
+	random_cache_oper();
 
 	return r;
 }
@@ -877,6 +883,8 @@ static void received(const void *data, size_t len, void *priv)
 	uint8_t ept_addr;
 	int r = 0;
 
+	random_cache_oper();
+
 	/* Allow messages longer than 3 bytes, e.g. for future protocol versions. */
 	if (len < sizeof(struct icmsg_message)) {
 		r = -EINVAL;
@@ -910,6 +918,7 @@ static void received(const void *data, size_t len, void *priv)
 	}
 
 exit:
+	random_cache_oper();
 	if (r < 0) {
 		LOG_ERR("Failed to receive, err %d", r);
 	}
