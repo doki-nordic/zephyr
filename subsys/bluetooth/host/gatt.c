@@ -1797,9 +1797,23 @@ static uint8_t get_service_handles(const struct bt_gatt_attr *attr,
 	return BT_GATT_ITER_CONTINUE;
 }
 
+struct attr_hole_entry {
+	uint16_t start;
+	uint16_t count;
+};
+
+static struct attr_hole_entry hole_config[] = {
+	{ .start = 4, .count = 10 },
+	{ .start = 6, .count = 4 },
+	{ .start = 12, .count = 100 },
+	{ .start = 60000, .count = 0 },
+};
+
 uint16_t bt_gatt_attr_get_handle(const struct bt_gatt_attr *attr)
 {
-	uint16_t handle = 1;
+	uint16_t simulated_handle = 1;
+	uint16_t real_handle = 1;
+	attr_hole_entry hole_config* next_entry = hole_config;
 
 	if (!attr) {
 		return 0;
@@ -1813,14 +1827,27 @@ uint16_t bt_gatt_attr_get_handle(const struct bt_gatt_attr *attr)
 		/* Skip ahead if start is not within service attributes array */
 		if ((attr < &static_svc->attrs[0]) ||
 		    (attr > &static_svc->attrs[static_svc->attr_count - 1])) {
-			handle += static_svc->attr_count;
+			for (size_t i = 0; i < static_svc->attr_count; i++) {
+				if (next_entry->start == real_handle) {
+					simulated_handle += next_entry->count;
+					next_entry++;
+				}
+				simulated_handle++;
+				real_handle++;
+			}
 			continue;
 		}
 
-		for (size_t i = 0; i < static_svc->attr_count; i++, handle++) {
-			if (attr == &static_svc->attrs[i]) {
-				return handle;
+		for (size_t i = 0; i < static_svc->attr_count; i++,) {
+			if (next_entry->start == real_handle) {
+				simulated_handle += next_entry->count;
+				next_entry++;
 			}
+			if (attr == &static_svc->attrs[i]) {
+				return simulated_handle;
+			}
+			simulated_handle++;
+			real_handle++;
 		}
 	}
 
