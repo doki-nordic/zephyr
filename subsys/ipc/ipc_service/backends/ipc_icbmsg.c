@@ -5,7 +5,7 @@
  */
 
 /*
- * ICMsg with buffers backend.
+ * ICBMsg backend.
  *
  * This is an IPC service backend that dynamically allocates buffers for data storage
  * and uses ICMsg to send references to them.
@@ -85,12 +85,12 @@
 #include <zephyr/cache.h>
 
 LOG_MODULE_REGISTER(ipc_svc_icmsg_w_buf,
-		    CONFIG_IPC_SERVICE_BACKEND_ICMSG_WITH_BUF_LOG_LEVEL);
+		    CONFIG_IPC_SERVICE_BACKEND_ICBMSG_LOG_LEVEL);
 
-#define DT_DRV_COMPAT zephyr_ipc_icmsg_with_buf
+#define DT_DRV_COMPAT zephyr_ipc_icbmsg
 
 /** Alignment of a block. */
-#if defined(CONFIG_IPC_SERVICE_BACKEND_ICMSG_WITH_BUF_CACHE_ALIGN)
+#if defined(CONFIG_IPC_SERVICE_BACKEND_ICBMSG_CACHE_ALIGN)
 /** Inherit cache alignment from SPSC since ICMsg is using it. */
 #define BLOCK_ALIGNMENT MAX(sizeof(size_t), Z_SPSC_PBUF_DCACHE_LINE)
 #else
@@ -98,7 +98,7 @@ LOG_MODULE_REGISTER(ipc_svc_icmsg_w_buf,
 #endif
 
 /** Allowed number of endpoints. */
-#define NUM_EPT CONFIG_IPC_SERVICE_BACKEND_ICMSG_WITH_BUF_NUM_EP
+#define NUM_EPT CONFIG_IPC_SERVICE_BACKEND_ICBMSG_NUM_EP
 
 /** Special endpoint address indicating invalid (or empty) entry. */
 #define EPT_ADDR_INVALID 0xFF
@@ -146,7 +146,7 @@ struct channel_config {
 	size_t block_count;	/* Number of blocks. */
 };
 
-struct icmsg_with_buf_config {
+struct icbmsg_config {
 	struct icmsg_config_t icmsg_config;	/* Configuration of the ICMsg. */
 	struct channel_config rx;		/* RX channel config. */
 	struct channel_config tx;		/* TX channel config. */
@@ -164,7 +164,7 @@ struct ept_data {
 };
 
 struct backend_data {
-	const struct icmsg_with_buf_config *conf; /* Backend instance config. */
+	const struct icbmsg_config *conf; /* Backend instance config. */
 	struct icmsg_data_t icmsg_data;	/* ICMsg data. */
 	struct k_mutex mutex;		/* Mutex to protect: ICMsg send call and
 					 * waiting_bound field.
@@ -307,7 +307,7 @@ static int buffer_to_index_validate(const struct channel_config *ch_conf,
 static int alloc_tx_buffer(struct backend_data *dev_data, uint32_t *size,
 			   uint8_t **buffer, k_timeout_t timeout)
 {
-	const struct icmsg_with_buf_config *conf = dev_data->conf;
+	const struct icbmsg_config *conf = dev_data->conf;
 	size_t total_size = *size + BLOCK_HEADER_SIZE;
 	size_t num_blocks = DIV_ROUND_UP(total_size, conf->tx.block_size);
 	struct block_header *block;
@@ -395,7 +395,7 @@ static int alloc_tx_buffer(struct backend_data *dev_data, uint32_t *size,
 static int release_tx_blocks(struct backend_data *dev_data, size_t tx_block_index,
 			     size_t size, int new_size)
 {
-	const struct icmsg_with_buf_config *conf = dev_data->conf;
+	const struct icbmsg_config *conf = dev_data->conf;
 	struct block_header *block;
 	size_t num_blocks;
 	size_t total_size;
@@ -457,7 +457,7 @@ static int release_tx_blocks(struct backend_data *dev_data, size_t tx_block_inde
 static int release_tx_buffer(struct backend_data *dev_data, const uint8_t *buffer,
 			     int new_size)
 {
-	const struct icmsg_with_buf_config *conf = dev_data->conf;
+	const struct icbmsg_config *conf = dev_data->conf;
 	size_t size;
 	int tx_block_index;
 
@@ -476,7 +476,7 @@ static int release_tx_buffer(struct backend_data *dev_data, const uint8_t *buffe
 static int icmsg_send_wrapper(struct backend_data *dev_data, enum msg_type msg_type,
 			      uint8_t ept_addr, uint8_t block_index)
 {
-	const struct icmsg_with_buf_config *conf = dev_data->conf;
+	const struct icbmsg_config *conf = dev_data->conf;
 	const struct icmsg_message message = {
 		.msg_type = (uint8_t)msg_type,
 		.ept_addr = ept_addr,
@@ -506,7 +506,7 @@ static int icmsg_send_wrapper(struct backend_data *dev_data, enum msg_type msg_t
 static int send_release(struct backend_data *dev_data, const uint8_t *buffer,
 			enum msg_type msg_type, uint8_t ept_addr)
 {
-	const struct icmsg_with_buf_config *conf = dev_data->conf;
+	const struct icbmsg_config *conf = dev_data->conf;
 	int rx_block_index;
 
 	rx_block_index = buffer_to_index_validate(&conf->rx, buffer, NULL);
@@ -598,7 +598,7 @@ static int find_ept_by_name(struct backend_data *dev_data, const char *name)
 static int match_bound_msg(struct backend_data *dev_data, size_t rx_block_index,
 			   uint8_t ept_addr)
 {
-	const struct icmsg_with_buf_config *conf = dev_data->conf;
+	const struct icbmsg_config *conf = dev_data->conf;
 	struct block_header *block;
 	uint8_t *buffer;
 	int ept_index;
@@ -766,7 +766,7 @@ static struct ept_data *get_ept_and_rx_validate(struct backend_data *dev_data,
 static int received_data(struct backend_data *dev_data, size_t rx_block_index,
 			 uint8_t ept_addr)
 {
-	const struct icmsg_with_buf_config *conf = dev_data->conf;
+	const struct icbmsg_config *conf = dev_data->conf;
 	uint8_t *buffer;
 	struct ept_data *ept;
 	size_t size;
@@ -802,7 +802,7 @@ static int received_data(struct backend_data *dev_data, size_t rx_block_index,
 static int received_release_data(struct backend_data *dev_data, size_t tx_block_index,
 				 uint8_t ept_addr)
 {
-	const struct icmsg_with_buf_config *conf = dev_data->conf;
+	const struct icbmsg_config *conf = dev_data->conf;
 	uint8_t *buffer;
 	struct ept_data *ept;
 	size_t size;
@@ -839,7 +839,7 @@ static int received_release_data(struct backend_data *dev_data, size_t tx_block_
 static int received_bound(struct backend_data *dev_data, size_t rx_block_index,
 			  uint8_t ept_addr)
 {
-	const struct icmsg_with_buf_config *conf = dev_data->conf;
+	const struct icbmsg_config *conf = dev_data->conf;
 	size_t size;
 	uint8_t *buffer;
 
@@ -933,7 +933,7 @@ static void bound(void *priv)
  */
 static int open(const struct device *instance)
 {
-	const struct icmsg_with_buf_config *conf = instance->config;
+	const struct icbmsg_config *conf = instance->config;
 	struct backend_data *dev_data = instance->data;
 
 	static const struct ipc_service_cb cb = {
@@ -1033,7 +1033,7 @@ static int register_ept(const struct device *instance, void **token,
  */
 static int get_tx_buffer_size(const struct device *instance, void *token)
 {
-	const struct icmsg_with_buf_config *conf = instance->config;
+	const struct icbmsg_config *conf = instance->config;
 
 	return conf->tx.block_size * conf->tx.block_count - BLOCK_HEADER_SIZE;
 }
@@ -1095,7 +1095,7 @@ static int send_nocopy(const struct device *instance, void *token, const void *d
  */
 static int hold_rx_buffer(const struct device *instance, void *token, void *data)
 {
-	const struct icmsg_with_buf_config *conf = instance->config;
+	const struct icbmsg_config *conf = instance->config;
 	int rx_block_index;
 	uint8_t *buffer = data;
 
@@ -1120,7 +1120,7 @@ static int release_rx_buffer(const struct device *instance, void *token, void *d
  */
 static int backend_init(const struct device *instance)
 {
-	const struct icmsg_with_buf_config *conf = instance->config;
+	const struct icbmsg_config *conf = instance->config;
 	struct backend_data *dev_data = instance->data;
 
 	dev_data->conf = conf;
@@ -1236,7 +1236,7 @@ BUILD_ASSERT(IS_POWER_OF_TWO(BLOCK_ALIGNMENT),
 	SYS_BITARRAY_DEFINE_STATIC(tx_usage_bitmap_##i, DT_INST_PROP(i, tx_blocks));	\
 	SYS_BITARRAY_DEFINE_STATIC(rx_hold_bitmap_##i, DT_INST_PROP(i, rx_blocks));	\
 	static struct backend_data backend_data_##i;					\
-	static const struct icmsg_with_buf_config backend_config_##i =			\
+	static const struct icbmsg_config backend_config_##i =			\
 	{										\
 		.icmsg_config = {							\
 			.tx_shm_size = GET_ICMSG_SIZE_INST(i, tx, rx),			\

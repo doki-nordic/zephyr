@@ -185,7 +185,7 @@ backend.
    :maxdepth: 1
 
    backends/ipc_service_icmsg.rst
-   backends/ipc_service_icmsg_with_buf.rst
+   backends/ipc_service_icbmsg.rst
 
 API Reference
 *************

@@ -33,7 +33,7 @@
 		/delete-node/ ipc0;
 
 		ipc0: ipc0 {
-			compatible = "zephyr,ipc-icmsg-with-buf";
+			compatible = "zephyr,ipc-icbmsg";
 			tx-region = <&sram_ipc0_tx>;
 			rx-region = <&sram_ipc0_rx>;
 			tx-blocks = <24>;
@@ -44,7 +44,7 @@
 		};
 
 		ipc1: ipc1 {
-			compatible = "zephyr,ipc-icmsg-with-buf";
+			compatible = "zephyr,ipc-icbmsg";
 			tx-region = <&sram_ipc1_tx>;
 			rx-region = <&sram_ipc1_rx>;
 			tx-blocks = <48>;

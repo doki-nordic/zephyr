@@ -5,7 +5,7 @@ IPC Service - Multi-endpoint Sample Application
 
 This application demonstrates how to use IPC Service with multiple endpoints.
 By default, it uses the ``icmsg_me`` backend.
-You can also configure it to use the ``icmsg_with_buf`` backend.
+You can also configure it to use the ``icbmsg`` backend.
 
 Building the application for nrf5340dk_nrf5340_cpuapp
 *****************************************************
@@ -64,7 +64,7 @@ serial port:
 Changing the backend
 ********************
 
-To change the backend to ``icmsg_with_buf``, switch the devicetree
+To change the backend to ``icbmsg``, switch the devicetree
 overlay files as follows:
 
 .. code-block:: console

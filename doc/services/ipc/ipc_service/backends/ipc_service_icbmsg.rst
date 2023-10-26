@@ -1,4 +1,4 @@
-.. _ipc_service_backend_icmsg_with_buf:
+.. _ipc_service_backend_icbmsg:
 
 ICMsg with dynamically allocated buffers backend
 ################################################
@@ -66,7 +66,7 @@ See the following configuration example for one of the instances:
 
    ipc {
       ipc0: ipc0 {
-         compatible = "zephyr,ipc-icmsg-with-buf";
+         compatible = "zephyr,ipc-icbmsg";
          tx-region = <&tx>;
          rx-region = <&rx>;
          tx-blocks = <16>;

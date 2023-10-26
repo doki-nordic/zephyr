@@ -6,7 +6,7 @@
 
 description: Inter-core messaging backend with dynamically allocated buffers
 
-compatible: "zephyr,ipc-icmsg-with-buf"
+compatible: "zephyr,ipc-icbmsg"
 
 include: zephyr,ipc-icmsg.yaml
 
