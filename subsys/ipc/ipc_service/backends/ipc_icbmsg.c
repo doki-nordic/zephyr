@@ -14,7 +14,7 @@
  * --------------------------
  *
  * Single channel (RX or TX) of the shared memory is divided into two areas: ICMsg area
- * followed by Blocks area. ICMsg is used to send and receive short 2-byte messages.
+ * followed by Blocks area. ICMsg is used to send and receive short 3-byte messages.
  * Blocks area is evenly divided into aligned blocks. Blocks are used to allocate
  * buffers containing actual data. Data buffers can span multiple blocks. The first block
  * starts with the size of the following data.
@@ -225,7 +225,6 @@ static uint8_t *buffer_from_index_validate(const struct channel_config *ch_conf,
 					   size_t block_index, size_t *size,
 					   bool invalidate_cache)
 {
-
 	size_t allocable_size;
 	size_t buffer_size;
 	uint8_t *end_ptr;
@@ -246,11 +245,13 @@ static uint8_t *buffer_from_index_validate(const struct channel_config *ch_conf,
 		allocable_size = ch_conf->block_count * ch_conf->block_size;
 		end_ptr = ch_conf->blocks_ptr + allocable_size;
 		buffer_size = block->size;
+
 		if ((buffer_size > allocable_size - BLOCK_HEADER_SIZE) ||
 		    (&block->data[buffer_size] > end_ptr)) {
 			LOG_ERR("Block corrupted");
 			return NULL;
 		}
+
 		*size = buffer_size;
 		if (invalidate_cache) {
 			sys_cache_data_invd_range(block->data, buffer_size);
