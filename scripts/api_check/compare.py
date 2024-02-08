@@ -9,6 +9,28 @@ DELETED = 'deleted'
 MODIFIED = 'modified'
 
 
+class GroupChanges:
+    name: str
+    title: str
+    files: 'list[FileChanges]'
+    changes: 'list[AnyChange]'
+    def __init__(self, name: str, title: str) -> None:
+        self.name = name
+        self.title = title
+        self.changes = []
+        self.files = []
+
+
+class FileChanges:
+    name: str
+    groups: 'list[GroupChanges]'
+    changes: 'list[AnyChange]'
+    def __init__(self, name: str) -> None:
+        self.name = name
+        self.changes = []
+        self.groups = []
+
+
 class AnyChange:
     kind: str
     action: str
@@ -309,4 +331,83 @@ def compare_nodes(new: ParseResult, old: ParseResult) -> 'list[AnyChange]':
 
     return changes
 
+
+class CompareResult:
+    changes: 'list[AnyChange]'
+    groups: 'list[GroupChanges]'
+    files: 'list[FileChanges]'
+
+
+def sort_changes(result: CompareResult):
+    result.changes.sort(key=lambda x: (x.new.file, x.new.line))
+    result.files.sort(key=lambda x: x.name)
+    result.groups.sort(key=lambda x: x.name)
+    for file in result.files:
+        file.changes.sort(key=lambda x: x.new.line)
+        file.groups.sort(key=lambda x: x.name)
+        for group in file.groups:
+            group.changes.sort(key=lambda x: x.new.line)
+    for group in result.groups:
+        group.changes.sort(key=lambda x: (x.new.file, x.new.line))
+        group.files.sort(key=lambda x: x.name)
+        for file in group.files:
+            file.changes.sort(key=lambda x: x.new.line)
+
+
+def compare(new: ParseResult, old: ParseResult) -> CompareResult:
+    groups: 'dict[str, GroupChanges]' = {}
+    groups_in_files: 'dict[str, GroupChanges]' = {}
+    files: 'dict[str, FileChanges]' = {}
+    files_in_groups: 'dict[str, FileChanges]' = {}
+    changes = compare_nodes(new, old)
+    for change in changes:
+        node: Node = change.new
+        group: 'Group | None' = None
+        for parent_id in node.parent_ids:
+            parent = None
+            if parent_id in new.nodes_by_id:
+                parent = new.nodes_by_id[parent_id]
+            if parent_id in old.nodes_by_id:
+                parent = old.nodes_by_id[parent_id]
+            if parent and isinstance(parent, Group):
+                group = parent
+        file_name = node.file
+        group_name = group.name if group else ''
+        combined_name = f'{file_name}```{group_name}'
+
+        if file_name in files:
+            file_changes = files[file_name]
+        else:
+            file_changes = FileChanges(file_name)
+            files[file_name] = file_changes
+        file_changes.changes.append(change)
+
+        if group_name in groups:
+            group_changes = groups[group_name]
+        else:
+            group_changes = GroupChanges(group_name, group.title if group else 'Unassigned')
+            groups[group_name] = group_changes
+        group_changes.changes.append(change)
+
+        if combined_name in files_in_groups:
+            file_in_group_changes = files_in_groups[combined_name]
+            group_in_file_changes = groups_in_files[combined_name]
+        else:
+            file_in_group_changes = FileChanges(file_name)
+            group_in_file_changes = GroupChanges(group_name, group.title if group else 'Unassigned')
+            files_in_groups[combined_name] = file_in_group_changes
+            groups_in_files[combined_name] = group_in_file_changes
+            group_changes.files.append(file_in_group_changes)
+            file_changes.groups.append(group_in_file_changes)
+        file_in_group_changes.changes.append(change)
+        group_in_file_changes.changes.append(change)
+
+    result = CompareResult()
+    result.changes = changes
+    result.files = list(files.values())
+    result.groups = list(groups.values())
+
+    sort_changes(result)
+
+    return result
 
