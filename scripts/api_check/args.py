@@ -24,7 +24,7 @@ def parse_args() -> ArgsClass:
                         help='The directory containing doxygen XML output or pre-parsed file with ' +
                              'the old API version. You should skip this if you want to pre-parse ' +
                              'the input with the "--save-input" option.')
-    parser.add_argument('--format', choices=('text', 'markdown'), default='text',
+    parser.add_argument('--format', choices=('text', 'markdown', 'json'), default='text',
                         help='Output format. Default is "text".')
     parser.add_argument('--save-input', metavar='FILE', type=Path,
                         help='Pre-parse and save the input to a file. The file format may change ' +

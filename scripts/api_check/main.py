@@ -1,6 +1,7 @@
 
 import out_text
 import out_markdown
+import out_json
 from args import args
 from compare import compare
 from dox_parser import dump_doxygen_json, parse_doxygen, save_doxygen
@@ -33,6 +34,8 @@ def main():
             out_text.generate(changes)
         #elif args.format == 'markdown':
         #    out_markdown.generate(changes)
+        elif args.format == 'json':
+            out_json.generate(changes)
 
 
 if __name__ == '__main__':
