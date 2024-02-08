@@ -11,8 +11,6 @@ from utils import concurrent_pool_iter, warning
 
 HEADER_FILE_EXTENSION = '.h'
 
-XML_DIR = Path('zephyr/doc/_build/doxygen/xml')
-
 def parse_description(*args):
     return '' # TODO: convert descriptions to string
     # <briefdescription>
@@ -196,9 +194,9 @@ def parse_struct(compound: dox_compound.compounddefType, is_union: bool) -> 'lis
     return result
 
 
-def process_compound(id: str) -> 'list[Node]':
+def process_compound(file_name: str) -> 'list[Node]':
     result: list[Node] = []
-    for compound in dox_compound.parse(XML_DIR / (id + '.xml'), True, True).get_compounddef():
+    for compound in dox_compound.parse(file_name, True, True).get_compounddef():
         compound: dox_compound.compounddefType
         if compound.kind == dox_index.CompoundKind.FILE:
             result.extend(parse_file(compound))
@@ -336,14 +334,14 @@ def parse_doxygen(dir_or_file: Path) -> ParseResult:
     nodes: 'list[Node]' = []
     if dir_or_file.is_dir():
         index = dox_index.parse(dir_or_file / 'index.xml', True, True)
-        ids: 'list[str]' = []
+        files: 'list[str]' = []
         for compound in index.get_compound():
             if compound.kind in (dox_index.CompoundKind.FILE,
                                 dox_index.CompoundKind.GROUP,
                                 dox_index.CompoundKind.STRUCT,
                                 dox_index.CompoundKind.CLASS,
                                 dox_index.CompoundKind.UNION):
-                ids.append(compound.refid)
+                files.append(dir_or_file / (compound.refid + '.xml'))
             elif compound.kind in (dox_index.CompoundKind.PAGE,
                                 dox_index.CompoundKind.DIR,
                                 dox_index.CompoundKind.CATEGORY,
@@ -352,9 +350,9 @@ def parse_doxygen(dir_or_file: Path) -> ParseResult:
                 pass
             else:
                 warning(f'Unknown doxygen compound kind: "{compound.kind}"')
-        shuffle(ids)
+        shuffle(files)
         #ids = ids[0:100]
-        for node, _, _ in concurrent_pool_iter(process_compound, ids, True, 20):
+        for node, _, _ in concurrent_pool_iter(process_compound, files, True, 20):
             nodes.extend(node)
     else:
         with open(dir_or_file, 'rb') as fd:

@@ -155,19 +155,21 @@ def match_items(new: 'list[EnumValue | Param | StructField]', old: 'list[EnumVal
     return deleted, matched, added
 
 
-def get_add_delete_change(node: Node, action: str) -> 'AnyChange':
+def get_add_delete_change(node: Node, action: str) -> 'list[AnyChange]':
     if isinstance(node, Typedef):
-        return TypedefChange(action, node, node)
+        return [TypedefChange(action, node, node)]
     elif isinstance(node, Variable):
-        return VariableChange(action, node, node)
+        return [VariableChange(action, node, node)]
     elif isinstance(node, Enum):
-        return EnumChange(action, node, node)
+        return [EnumChange(action, node, node)]
     elif isinstance(node, Struct):
-        return StructChange(action, node, node)
+        return [StructChange(action, node, node)]
     elif isinstance(node, Function):
-        return FunctionChange(action, node, node)
+        return [FunctionChange(action, node, node)]
     elif isinstance(node, Define):
-        return DefineChange(action, node, node)
+        return [DefineChange(action, node, node)]
+    else:
+        return []
 
 
 def get_modification_changes(new: Node, old: Node) -> 'list[AnyChange]':
@@ -321,10 +323,10 @@ def compare_nodes(new: ParseResult, old: ParseResult) -> 'list[AnyChange]':
     changes:'list[AnyChange]' = []
 
     for node in deleted:
-        changes.append(get_add_delete_change(node, DELETED))
+        changes.extend(get_add_delete_change(node, DELETED))
 
     for node in added:
-        changes.append(get_add_delete_change(node, ADDED))
+        changes.extend(get_add_delete_change(node, ADDED))
 
     for nodes in matched:
         changes.extend(get_modification_changes(nodes[0], nodes[1]))
