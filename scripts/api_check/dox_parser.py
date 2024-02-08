@@ -226,19 +226,43 @@ class ParseResult:
         self.nodes_by_short_id = {}
 
 
+def first_node(a: Node, b: Node):
+    properties = set(filter(lambda x: not x.startswith('_'), dir(a)))
+    properties = list(properties.union(set(filter(lambda x: not x.startswith('_'), dir(b)))))
+    properties.sort()
+    for name in properties:
+        a_value = getattr(a, name) if hasattr(a, name) else None
+        b_value = getattr(b, name) if hasattr(b, name) else None
+        if callable(a_value) or callable(b_value) or isinstance(a_value, set) or isinstance(b_value, set) or isinstance(a_value, list) or isinstance(b_value, list): continue
+        if (a_value is None) and (b_value is None): continue
+        if (a_value is None) and (b_value is not None): return False
+        if (a_value is not None) and (b_value is None): return True
+        a_value = str(a_value)
+        b_value = str(b_value)
+        if (a_value == b_value): continue
+        return a_value > b_value
+    return True
+
+
 def prepare_result(nodes: 'list[Node]') -> ParseResult:
     result = ParseResult()
-    result.nodes = nodes
+    # Add node to nodes_by_id dictionary
     for node in nodes:
-        # Add node to nodes_by_id dictionary
         if node.id in result.nodes_by_id:
             other = result.nodes_by_id[node.id]
             if node.get_short_id() != other.get_short_id():
                 warning(f'Doxygen identifier repeated for multiple nodes: {node.id}')
+            # If overriding always select the same node to ensure deterministic behavior
+            result.nodes_by_id[node.id] = node if first_node(node, other) else other
         else:
             result.nodes_by_id[node.id] = node
-        # Add node to nodes_by_short_id dictionary
+    # Use only accessible nodes
+    result.nodes = list(result.nodes_by_id.values())
+    # Add node to nodes_by_short_id dictionary
+    for node in result.nodes:
         short_id = node.get_short_id()
+        if short_id == "def:PTHREAD_PROCESS_PRIVATE":
+            short_id = short_id
         if short_id in result.nodes_by_short_id:
             # Create or update group with the same short id
             other = result.nodes_by_short_id[short_id]
@@ -250,16 +274,16 @@ def prepare_result(nodes: 'list[Node]') -> ParseResult:
             # Generate a key for this node
             if tuple(group.keys())[0].count('>') > 0:
                 # If group contains keys with doxygen id, use file path and id as key
-                key = node.file + '>' + node.id
+                key = node.file + '>' + node.id + '>' + str(node.line)
             else:
                 # If group does not contain keys with doxygen id, use file path only
                 key = node.file
                 # In case of duplicate, convert keys to keys with doxygen id
                 if key in group:
-                    key += '>' + node.id
+                    key += '>' + node.id + '>' + str(node.line)
                     new_group = {}
                     for group_key, group_node in group.items():
-                        new_group[group_key + '>' + group_node.id] = group_node
+                        new_group[group_key + '>' + group_node.id + '>' + str(group_node.line)] = group_node
                     group = new_group
             # Set node and group
             group[key] = node
@@ -267,7 +291,7 @@ def prepare_result(nodes: 'list[Node]') -> ParseResult:
         else:
             result.nodes_by_short_id[short_id] = node
     # Fix parent-child relations: delete nonexisting links and create both ways link
-    for node in nodes:
+    for node in result.nodes:
         if node.parent_ids:
             new_set = set()
             for parent_id in node.parent_ids:
@@ -291,19 +315,24 @@ def save_doxygen(parse_result: ParseResult, file: Path):
 
 
 def dump_doxygen_json(parse_result: ParseResult, file: Path):
-    def default(o):
+    def default_nodes(o):
         if isinstance(o, set):
             return list(o)
         else:
-            d = {}
+            d = {'__id__': id(o)}
             for name in tuple(dir(o)):
                 if not name.startswith('_'):
                     value = getattr(o, name)
                     if not callable(value):
                         d[name] = value
             return d
+    def default_refs(o):
+        return f'__refid__{id(o)}'
+    nodes_json = JSONEncoder(sort_keys=False, indent=4, default=default_nodes).encode(parse_result.nodes)
+    by_id_json = JSONEncoder(sort_keys=False, indent=4, default=default_refs).encode(parse_result.nodes_by_id)
+    by_short_id_json = JSONEncoder(sort_keys=False, indent=4, default=default_refs).encode(parse_result.nodes_by_short_id)
     with open(file, 'w') as fd:
-        fd.write(JSONEncoder(sort_keys=False, indent=4, default=default).encode(parse_result.nodes))
+        fd.write('{\n"nodes": ' + nodes_json + ',\n"by_id": ' + by_id_json + ',\n"by_short_id": ' + by_short_id_json + '\n}\n')
 
 
 def parse_doxygen(dir_or_file: Path) -> ParseResult:

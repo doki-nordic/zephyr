@@ -33,6 +33,15 @@ class Group(Node):
     title: str = ''
 
 
+class SimpleNode(Node):
+    type: str = ''
+
+
+class StructField(SimpleNode):
+    kind: str = 'field'
+    index: int = 0
+
+
 class Struct(Node):
     kind: str
     is_union: bool
@@ -46,8 +55,8 @@ class Struct(Node):
 
 class Param:
     index: int
-    type: str
     name: str
+    type: str
     desc: str
 
 
@@ -76,8 +85,8 @@ class Define(FunctionLike):
 class EnumValue:
     index: int
     name: str
-    desc: str
     value: str
+    desc: str
 
 
 class Enum(Node):
@@ -93,19 +102,10 @@ class Enum(Node):
         return value
 
 
-class SimpleNode(Node):
-    type: str = ''
-
-
 class Typedef(SimpleNode):
     kind: str = 'typedef'
 
 
 class Variable(SimpleNode):
     kind: str = 'var'
-
-
-class StructField(SimpleNode):
-    kind: str = 'field'
-    index: int = 0
 
