@@ -1,9 +1,6 @@
 
 import pickle
-import os
-import sys
 import re
-import doxmlparser
 import doxmlparser.index as dox_index
 import doxmlparser.compound as dox_compound
 from random import shuffle

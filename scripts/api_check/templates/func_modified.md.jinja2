@@ -1,0 +1,29 @@
+
+{% for param in params %}
+{{ _generate_('func_param', param, parent=this) }}
+{% endfor %}
+
+{% if return_type %}
+{{ _error_ }}
+Return type of the function `{{new.name}}` was changed
+in `{{new.file}}:{{new.line}}`.
+
+If user need to handle the returned value in any different way ollow the migration
+procedure and add it to the migration guide.
+{% endif %}
+
+{% if desc %}
+{{ _notice_ }}
+A definition `{{new.name}}` description was changed in `{{new.file}}:{{new.line}}`.
+
+If this is a behavioral change that affects API compatibility, add it to the migration guide.
+{% endif %}
+
+{% if file %}
+{{ _warning_ }}
+A definition `{{new.name}}` was moved from `{{old.file}}:{{old.line}}`
+to `{{new.file}}:{{new.line}}`.
+
+If this changes includes in user code, follow the migration procedure and add it
+to the migration guide.
+{% endif %}
