@@ -15,7 +15,7 @@ jobs:
 
     - name: Test
       run: |
-        echo '::warning file=.github/workflows/coding_guidelines.yml,line=5,title=API-Check Warning::Parameter "ptr" type changed in "arch_xtensa_uncached_ptr".'
-        echo '::error file=.github/workflows/coding_guidelines.yml,line=17,title=API-Check Critical::Field "usage" deleted from structure "pm_device".'
+        echo '::warning file=.github/workflows/coding_guidelines.yml,line=1,title=API-Check Warning::Parameter "ptr" type changed in "arch_xtensa_uncached_ptr".'
+        echo '::error file=.github/workflows/coding_guidelines.yml,line=17,title=API-Check Critical::Field "usage2" deleted from structure "pm_device".'
         echo '::notice file=test.md,line=1,title=API-Check Notice::Function "sys_cache_is_ptr_cached" added.'
         cat test.md > $GITHUB_STEP_SUMMARY
