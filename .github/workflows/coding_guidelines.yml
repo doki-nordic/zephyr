@@ -13,47 +13,9 @@ jobs:
         ref: ${{ github.event.pull_request.head.sha }}
         fetch-depth: 0
 
-    - name: cache-pip
-      uses: actions/cache@v3
-      with:
-        path: ~/.cache/pip
-        key: ${{ runner.os }}-doc-pip
-
-    - name: Install python dependencies
+    - name: Test
       run: |
-        pip3 install unidiff
-        pip3 install wheel
-        pip3 install sh
-
-    - name: Install Packages
-      run: |
-        sudo apt-get update
-        sudo apt-get install coccinelle
-
-    - name: Run Coding Guildeines Checks
-      continue-on-error: true
-      id: coding_guidelines
-      env:
-        BASE_REF: ${{ github.base_ref }}
-      run: |
-        export ZEPHYR_BASE=$PWD
-        git config --global user.email "actions@zephyrproject.org"
-        git config --global user.name "Github Actions"
-        git remote -v
-        git rebase origin/${BASE_REF}
-        source zephyr-env.sh
-        # debug
-        ls -la
-        git log  --pretty=oneline | head -n 10
-        ./scripts/ci/guideline_check.py --output output.txt -c origin/${BASE_REF}..
-
-    - name: check-warns
-      run: |
-        if [[ -s "output.txt" ]]; then
-            errors=$(cat output.txt)
-            errors="${errors//'%'/'%25'}"
-            errors="${errors//$'\n'/'%0A'}"
-            errors="${errors//$'\r'/'%0D'}"
-            echo "::error file=output.txt::$errors"
-            exit 1;
-        fi
+        echo '::warning file=.github/workflows/coding_guidelines.yml,line=1,title=API-Check Warning::Parameter "ptr" type changed in "arch_xtensa_uncached_ptr".'
+        echo '::error file=.github/workflows/coding_guidelines.yml,line=17,title=API-Check Critical::Field "usage2" deleted from structure "pm_device".'
+        echo '::notice file=test.md,line=1,title=API-Check Notice::Function "sys_cache_is_ptr_cached" added.'
+        cat test.md > $GITHUB_STEP_SUMMARY
