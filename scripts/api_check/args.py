@@ -10,6 +10,7 @@ class ArgsClass:
     old_input: 'Path | None'
     format: str
     save_input: 'Path | None'
+    save_old_input: 'Path | None'
     dump_json: 'Path | None'
 
 
@@ -27,9 +28,11 @@ def parse_args() -> ArgsClass:
     parser.add_argument('--format', choices=('text', 'markdown', 'json'), default='text',
                         help='Output format. Default is "text".')
     parser.add_argument('--save-input', metavar='FILE', type=Path,
-                        help='Pre-parse and save the input to a file. The file format may change ' +
+                        help='Pre-parse and save the "new-input" to a file. The file format may change ' +
                              'from version to version. Use always the same version ' +
                              'of this tool for one file.')
+    parser.add_argument('--save-old-input', metavar='FILE', type=Path,
+                        help='Pre-parse and save the "old-input" to a file.')
     parser.add_argument('--dump-json', metavar='FILE', type=Path,
                         help='Dump input data to a JSON file (only for debug purposes).')
     parser.add_argument('--help', action='help',
@@ -43,6 +46,17 @@ def parse_args() -> ArgsClass:
 
     return args
 
+
+def parse_args2() -> ArgsClass:
+    a = ArgsClass()
+    a.dump_json = Path('/home/doki/work/zephyr/dump.json')
+    a.format = 'text'
+    a.new_input = Path('/home/doki/work/zephyr/new.pkl')
+    a.old_input = Path('/home/doki/work/zephyr/old.pkl')
+    #a.new_input = Path('/home/doki/work/zephyr/zephyr/doc/_build/doxygen/xml')
+    a.old_input = Path('/home/doki/work/zephyr/zephyr/doc/_build/doxygen/xml')
+    a.save_input = None
+    return a
 
 args: ArgsClass = parse_args()
 

@@ -7,11 +7,19 @@ from jinja2 import Template
 def compile_messages(messages):
     result = {}
     for key in list(messages.keys()):
-        result[key] = Template(messages[key])
+        message = messages[key]
+        level = 0
+        if message.startswith('notice:'):
+            level = 1
+        elif message.startswith('warning:'):
+            level = 2
+        elif message.startswith('error:'):
+            level = 3
+        result[key] = (Template(messages[key]), level)
     return result
 
 
-messages: 'dict[str, Template]' = compile_messages({
+messages: 'dict[str, tuple[Template, int]]' = compile_messages({
     'typedef-added': 'notice: New type "{{new.name}}" definition added.',
     'typedef-deleted': 'error: Type "{{old.name}}" definition deleted.',
     'typedef-modified-file': 'warning: Type "{{new.name}}" definition moved to a different file.',
@@ -22,6 +30,11 @@ messages: 'dict[str, Template]' = compile_messages({
     'var-modified-file': 'warning: Variable "{{new.name}}" moved to a different file.',
     'var-modified-desc': 'notice: Variable "{{new.name}}" description changed.',
     'var-modified-type': 'warning: Variable "{{new.name}}" type changed.',
+    'enum_value-added': 'notice: New enum value "{{new.name}}" added.',
+    'enum_value-deleted': 'error: Enum value "{{old.name}}" deleted.',
+    'enum_value-modified-value': 'warning: Enum value "{{new.name}}" changed.',
+    'enum_value-modified-desc': 'notice: Enum value "{{new.name}}" description changed.',
+    'enum_value-modified-file': 'warning: Enum value "{{new.name}}" moved to a different file.',
     'enum-added': 'notice: New enum "{{new.name}}" added.',
     'enum-deleted': 'error: Enum "{{old.name}}" deleted.',
     'enum-modified-file': 'warning: Enum "{{new.name}}" moved to a different file.',
@@ -40,11 +53,6 @@ messages: 'dict[str, Template]' = compile_messages({
     'def-modified-value': 'notice: Definition "{{new.name}}" value changed.',
     'def-modified-file': 'warning: Definition "{{new.name}}" moved to a different file.',
     'def-modified-desc': 'notice: Definition "{{new.name}}" description changed.',
-    'enum_value-added': 'notice: New enum "{{enum.new.name}}" value "{{new.name}}" added.',
-    'enum_value-deleted': 'error: Enum "{{enum.new.name}}" value "{{old.name}}" deleted.',
-    'enum_value-modified-index': 'warning: Enum "{{enum.new.name}}" value "{{new.name}}" reordered.',
-    'enum_value-modified-value': 'warning: Enum "{{enum.new.name}}" value "{{new.name}}" changed.',
-    'enum_value-modified-desc': 'notice: Enum "{{enum.new.name}}" value "{{new.name}}" description changed.',
     'field-added': 'notice: Structure "{{struct.new.name}}" field "{{new.name}}" added.',
     'field-deleted': 'error: Structure "{{struct.new.name}}" field "{{new.name}}" deleted.',
     'field-modified-index': 'notice: Structure "{{struct.new.name}}" field "{{new.name}}" reordered.',
@@ -58,7 +66,8 @@ messages: 'dict[str, Template]' = compile_messages({
 })
 
 
-def generate_changes(changes: 'list[AnyChange]', location: str, **kwargs):
+def generate_changes(changes: 'list[AnyChange]', location: str, **kwargs) -> int:
+    max_level = 0
     for change in changes:
         prefix = f'{change.kind}-{change.action}'
         if change.new and hasattr(change.new, 'file') and change.new.file:
@@ -68,7 +77,7 @@ def generate_changes(changes: 'list[AnyChange]', location: str, **kwargs):
                 loc = f'{change.new.file}:'
         else:
             loc = location
-        for key, template in messages.items():
+        for key, (template, level) in messages.items():
             if key.startswith(prefix):
                 data = {}
                 for name in dir(change):
@@ -80,20 +89,24 @@ def generate_changes(changes: 'list[AnyChange]', location: str, **kwargs):
                 message = template.render(**data)
                 if key == prefix:
                     print(loc, message)
+                    max_level = max(level, max_level)
                 else:
                     field = key[len(prefix) + 1:]
                     value = getattr(change, field)
                     if (value):
                         print(loc, message)
-        if prefix == 'enum-modified':
-            generate_changes(change.values, loc, enum=change)
-        elif prefix == 'struct-modified':
+                        max_level = max(level, max_level)
+        if prefix == 'struct-modified':
             generate_changes(change.fields, loc, struct=change)
         elif prefix in ('func-modified', 'def-modified'):
             generate_changes(change.params, loc, parent=change)
+    return max_level
 
 def generate(compare_result: CompareResult):
+    max_level = 0
     for group in compare_result.groups:
         if (group.name):
             print(f'=== Group {group.name}: {group.title} ===')
-        generate_changes(group.changes, '')
+        level = generate_changes(group.changes, '')
+        max_level = max(level, max_level)
+    return max_level

@@ -82,24 +82,13 @@ class Define(FunctionLike):
     value: str = ''
 
 
-class EnumValue:
-    index: int
-    name: str
+class EnumValue(Node):
+    kind: str = 'enum_value'
     value: str
-    desc: str
 
 
 class Enum(Node):
     kind: str = 'enum'
-    values: 'list[EnumValue]'
-    def __init__(self, id: str, name: str):
-        super().__init__(id, name)
-        self.values = []
-    def add_value(self):
-        value = EnumValue()
-        value.index = len(self.values)
-        self.values.append(value)
-        return value
 
 
 class Typedef(SimpleNode):

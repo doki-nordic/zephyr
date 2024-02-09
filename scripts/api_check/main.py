@@ -1,6 +1,7 @@
 
+import sys
 import out_text
-import out_markdown
+#import out_markdown
 import out_json
 from args import args
 from compare import compare
@@ -18,6 +19,9 @@ def main():
     if args.save_input:
         save_doxygen(new_input, args.save_input)
 
+    if args.save_old_input and old_input:
+        save_doxygen(old_input, args.save_old_input)
+
     if args.dump_json:
         if old_input:
             dir = args.dump_json.parent
@@ -28,14 +32,18 @@ def main():
         else:
             dump_doxygen_json(new_input, args.dump_json)
 
+    level = 0
+
     if old_input:
         changes = compare(new_input, old_input)
         if args.format == 'text':
-            out_text.generate(changes)
+            level = out_text.generate(changes)
         #elif args.format == 'markdown':
-        #    out_markdown.generate(changes)
+        #    level = out_markdown.generate(changes)
         elif args.format == 'json':
-            out_json.generate(changes)
+            level = out_json.generate(changes)
+
+    sys.exit(level)
 
 
 if __name__ == '__main__':

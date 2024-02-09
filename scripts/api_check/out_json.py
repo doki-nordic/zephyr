@@ -19,3 +19,4 @@ def object_convert(o: Any):
 
 def generate(compare_result: CompareResult):
     json.dump(compare_result, fp=sys.stdout, default=object_convert, indent=4)
+    return 1 if len(compare_result.changes) else 0

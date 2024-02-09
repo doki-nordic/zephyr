@@ -59,23 +59,17 @@ class VariableChange(NodeChange):
     old: Variable
 
 
-class EnumValueChange(AnyChange):
+class EnumValueChange(NodeChange):
     kind = 'enum_value'
-    index: bool = False
     value: bool = False
-    desc: bool = False
     new: EnumValue
     old: EnumValue
 
 
 class EnumChange(NodeChange):
     kind = 'enum'
-    values: 'list[EnumValueChange]'
     new: Variable
     old: Variable
-    def __init__(self, action: str, new: Any, old: Any):
-        super().__init__(action, new, old)
-        self.values = []
 
 
 class StructFieldChange(AnyChange):
@@ -160,8 +154,13 @@ def get_add_delete_change(node: Node, action: str) -> 'list[AnyChange]':
         return [TypedefChange(action, node, node)]
     elif isinstance(node, Variable):
         return [VariableChange(action, node, node)]
+    elif isinstance(node, EnumValue):
+        return [EnumValueChange(action, node, node)]
     elif isinstance(node, Enum):
-        return [EnumChange(action, node, node)]
+        if node.name:
+            return [EnumChange(action, node, node)]
+        else:
+            return []
     elif isinstance(node, Struct):
         return [StructChange(action, node, node)]
     elif isinstance(node, Function):
@@ -195,25 +194,15 @@ def get_modification_changes(new: Node, old: Node) -> 'list[AnyChange]':
         node_change.type = (new.type != old.type)
         updated = node_change.type
 
+    elif isinstance(new, EnumValue):
+        new: EnumValue
+        old: EnumValue
+        node_change = EnumValueChange(MODIFIED, new, old)
+        node_change.value = (new.value != old.value)
+        updated = node_change.value
+
     elif isinstance(new, Enum):
-        new: Enum
-        old: Enum
         node_change = EnumChange(MODIFIED, new, old)
-        deleted, matched, added = match_items(new.values, old.values)
-        for value in deleted:
-            node_change.values.append(EnumValueChange(DELETED, value, value))
-        for value in added:
-            node_change.values.append(EnumValueChange(ADDED, value, value))
-        for new_value, old_value in matched:
-            if type(new_value) == str:
-                new_value = new_value
-            value_change = EnumValueChange(MODIFIED, new_value, old_value)
-            value_change.index = (new_value.index != old_value.index)
-            value_change.value = (new_value.value != old_value.value)
-            value_change.desc = (new_value.desc != old_value.desc)
-            if value_change.index or value_change.value or value_change.desc:
-                node_change.values.append(value_change)
-        updated = (len(node_change.values) != 0)
 
     elif isinstance(new, Struct):
         new: Struct
@@ -276,7 +265,7 @@ def convert_to_long_key(group: 'dict[None]') -> dict[None]:
     return result
 
 
-def match_groups(matched: 'list[tuple[Node, Node]]', added: 'list[Node]', old_matched: 'set[Node]', new_group: 'dict[None]', old_group: 'dict[None]'):
+def match_groups(matched: 'list[tuple[Node, Node]]', added: 'list[Node]', old_matched: 'set[Node]', new_group: 'dict[str, Node]', old_group: 'dict[str, Node]'):
     new_is_long_key = tuple(new_group.keys())[0].count('>') > 0
     old_is_long_key = tuple(old_group.keys())[0].count('>') > 0
     if new_is_long_key and not old_is_long_key:

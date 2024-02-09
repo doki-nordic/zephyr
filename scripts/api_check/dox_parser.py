@@ -6,7 +6,7 @@ import doxmlparser.compound as dox_compound
 from random import shuffle
 from pathlib import Path
 from json import JSONEncoder
-from nodes import Define, Enum, File, Function, FunctionLike, Group, Node, SimpleNode, Struct, StructField, Typedef, Variable
+from nodes import Define, Enum, EnumValue, File, Function, FunctionLike, Group, Node, SimpleNode, Struct, StructField, Typedef, Variable
 from utils import concurrent_pool_iter, warning
 
 HEADER_FILE_EXTENSION = '.h'
@@ -57,7 +57,7 @@ def parse_linked_text(type: 'dox_compound.linkedTextType | None') -> str:
         elif (part.category == dox_compound.MixedContainer.CategoryComplex) and (part.name == 'ref'):
             value: dox_compound.refTextType = part.value
             result += value.valueOf_
-    return result
+    return result.strip()
 
 
 def parse_function_like(node: FunctionLike, memberdef: dox_compound.memberdefType):
@@ -81,16 +81,30 @@ def parse_define(memberdef: dox_compound.memberdefType) -> Define:
     define.value = parse_linked_text(memberdef.initializer)
     return define
 
-def parse_enum(memberdef: dox_compound.memberdefType, name_override: str=None) -> Enum:
+def parse_enum(memberdef: dox_compound.memberdefType, name_override: str=None) -> 'list[Enum | EnumValue]':
+    result: 'list[Enum | EnumValue]' = []
     enum = Enum(memberdef.id, name_override or memberdef.name)
     parse_location_description(enum, memberdef)
+    result.append(enum)
+    last_value = ''
+    increment = 0
     for dox_value in memberdef.enumvalue:
         dox_value: dox_compound.enumvalueType
-        enum_value = enum.add_value()
+        enum_value = EnumValue(dox_value.id, dox_value.name)
+        enum_value.file = enum.file
+        enum_value.line = enum.line
         enum_value.desc = parse_description(dox_value)
-        enum_value.name = dox_value.name
-        enum_value.value = parse_linked_text(memberdef.initializer)
-    return enum
+        enum_value.value = parse_linked_text(dox_value.initializer)
+        while enum_value.value.startswith('='):
+            enum_value.value = enum_value.value[1:].strip()
+        if enum_value.value and (enum_value.value != 'void'):
+            last_value = enum_value.value
+            increment = 1
+        else:
+            enum_value.value = f'{last_value} + {increment}' if last_value else str(increment)
+            increment += 1
+        result.append(enum_value)
+    return result
 
 def parse_simple_node(node: SimpleNode, memberdef: dox_compound.memberdefType) -> SimpleNode:
     parse_location_description(node, memberdef)
@@ -104,7 +118,7 @@ def parse_memberdef(memberdef: dox_compound.memberdefType) -> 'list[Node]':
     elif memberdef.kind == dox_compound.DoxMemberKind.DEFINE:
         result.append(parse_define(memberdef))
     elif memberdef.kind == dox_compound.DoxMemberKind.ENUM:
-        result.append(parse_enum(memberdef))
+        result.extend(parse_enum(memberdef))
     elif memberdef.kind == dox_compound.DoxMemberKind.TYPEDEF:
         result.append(parse_simple_node(Typedef(memberdef.id, memberdef.name), memberdef))
     elif memberdef.kind == dox_compound.DoxMemberKind.VARIABLE:
@@ -187,7 +201,7 @@ def parse_struct(compound: dox_compound.compounddefType, is_union: bool) -> 'lis
                 if not memberdef.name:
                     full_name += '::' + memberdef.id
                 enum = parse_enum(memberdef, full_name)
-                result.append(enum)
+                result.extend(enum)
             else:
                 warning(f'Unknown structure member kind "{memberdef.kind}", name {memberdef.name} in {struct.name}, {struct.file}:{struct.line}')
     result.append(struct)
