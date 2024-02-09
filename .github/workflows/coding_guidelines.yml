@@ -7,6 +7,15 @@ jobs:
     runs-on: ubuntu-22.04
     name: Run coding guidelines checks on patch series (PR)
     steps:
-    - name: Install python dependencies
+    - name: Checkout the code
+      uses: actions/checkout@v3
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 0
+
+    - name: Test
       run: |
-        echo '::error file=zephyr/.github/workflows/coding_guidelines.yml,line=7,title=API-Check Critical:: :red_circle: Field "usage" deleted from structure "pm_device".'
+        echo '::warning file=.github/workflows/coding_guidelines.yml,line=5,title=API-Check Warning::Parameter "ptr" type changed in "arch_xtensa_uncached_ptr".'
+        echo '::error file=.github/workflows/coding_guidelines.yml,line=17,title=API-Check Critical::Field "usage" deleted from structure "pm_device".'
+        echo '::notice file=test.md,line=1,title=API-Check Notice::Function "sys_cache_is_ptr_cached" added.'
+        cat test.md > $GITHUB_STEP_SUMMARY
