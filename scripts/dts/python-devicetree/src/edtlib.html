@@ -1,0 +1,1117 @@
+<!DOCTYPE html PUBLIC "-//W3C//DTD HTML 4.0 Transitional//EN">
+<html><head><title>Python: module edtlib</title>
+<meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+</head><body bgcolor="#f0f0f8">
+
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="heading">
+<tr bgcolor="#7799ee">
+<td valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial">&nbsp;<br><big><big><strong>edtlib</strong></big></big></font></td
+><td align=right valign=bottom
+><font color="#ffffff" face="helvetica, arial"><a href=".">index</a><br><a href="file:/home/doki/work/zephyr/zephyr/scripts/dts/python-devicetree/src/devicetree/edtlib.py">/home/doki/work/zephyr/zephyr/scripts/dts/python-devicetree/src/devicetree/edtlib.py</a></font></td></tr></table>
+    <p><tt>Library&nbsp;for&nbsp;working&nbsp;with&nbsp;devicetrees&nbsp;at&nbsp;a&nbsp;higher&nbsp;level&nbsp;compared&nbsp;to&nbsp;dtlib.&nbsp;Like<br>
+dtlib,&nbsp;this&nbsp;library&nbsp;presents&nbsp;a&nbsp;tree&nbsp;of&nbsp;devicetree&nbsp;nodes,&nbsp;but&nbsp;the&nbsp;nodes&nbsp;are<br>
+augmented&nbsp;with&nbsp;information&nbsp;from&nbsp;bindings&nbsp;and&nbsp;include&nbsp;some&nbsp;interpretation&nbsp;of<br>
+properties.&nbsp;Some&nbsp;of&nbsp;this&nbsp;interpretation&nbsp;is&nbsp;based&nbsp;on&nbsp;conventions&nbsp;established<br>
+by&nbsp;the&nbsp;Linux&nbsp;kernel,&nbsp;so&nbsp;the&nbsp;Documentation/devicetree/bindings&nbsp;in&nbsp;the&nbsp;Linux<br>
+source&nbsp;code&nbsp;is&nbsp;sometimes&nbsp;good&nbsp;reference&nbsp;material.<br>
+&nbsp;<br>
+Bindings&nbsp;are&nbsp;YAML&nbsp;files&nbsp;that&nbsp;describe&nbsp;devicetree&nbsp;nodes.&nbsp;Devicetree<br>
+nodes&nbsp;are&nbsp;usually&nbsp;mapped&nbsp;to&nbsp;bindings&nbsp;via&nbsp;their&nbsp;'compatible&nbsp;=&nbsp;"..."'&nbsp;property,<br>
+but&nbsp;a&nbsp;binding&nbsp;can&nbsp;also&nbsp;come&nbsp;from&nbsp;a&nbsp;'child-binding:'&nbsp;key&nbsp;in&nbsp;the&nbsp;binding&nbsp;for&nbsp;the<br>
+parent&nbsp;devicetree&nbsp;node.<br>
+&nbsp;<br>
+Each&nbsp;devicetree&nbsp;node&nbsp;(dtlib.<a href="#Node">Node</a>)&nbsp;gets&nbsp;a&nbsp;corresponding&nbsp;edtlib.<a href="#Node">Node</a>&nbsp;instance,<br>
+which&nbsp;has&nbsp;all&nbsp;the&nbsp;information&nbsp;related&nbsp;to&nbsp;the&nbsp;node.<br>
+&nbsp;<br>
+The&nbsp;top-level&nbsp;entry&nbsp;points&nbsp;for&nbsp;the&nbsp;library&nbsp;are&nbsp;the&nbsp;<a href="#EDT">EDT</a>&nbsp;and&nbsp;<a href="#Binding">Binding</a>&nbsp;classes.<br>
+See&nbsp;their&nbsp;constructor&nbsp;docstrings&nbsp;for&nbsp;details.&nbsp;There&nbsp;is&nbsp;also&nbsp;a<br>
+<a href="#-bindings_from_paths">bindings_from_paths</a>()&nbsp;helper&nbsp;function.</tt></p>
+<p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#aa55cc">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Modules</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#aa55cc"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><table width="100%" summary="list"><tr><td width="25%" valign=top><a href="logging.html">logging</a><br>
+</td><td width="25%" valign=top><a href="os.html">os</a><br>
+</td><td width="25%" valign=top><a href="re.html">re</a><br>
+</td><td width="25%" valign=top><a href="yaml.html">yaml</a><br>
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ee77aa">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Classes</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#ee77aa"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl>
+<dt><font face="helvetica, arial"><a href="builtins.html#Exception">builtins.Exception</a>(<a href="builtins.html#BaseException">builtins.BaseException</a>)
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="edtlib.html#EDTError">EDTError</a>
+</font></dt></dl>
+</dd>
+<dt><font face="helvetica, arial"><a href="builtins.html#object">builtins.object</a>
+</font></dt><dd>
+<dl>
+<dt><font face="helvetica, arial"><a href="edtlib.html#Binding">Binding</a>
+</font></dt><dt><font face="helvetica, arial"><a href="edtlib.html#ControllerAndData">ControllerAndData</a>
+</font></dt><dt><font face="helvetica, arial"><a href="edtlib.html#EDT">EDT</a>
+</font></dt><dt><font face="helvetica, arial"><a href="edtlib.html#Node">Node</a>
+</font></dt><dt><font face="helvetica, arial"><a href="edtlib.html#PinCtrl">PinCtrl</a>
+</font></dt><dt><font face="helvetica, arial"><a href="edtlib.html#Property">Property</a>
+</font></dt><dt><font face="helvetica, arial"><a href="edtlib.html#PropertySpec">PropertySpec</a>
+</font></dt><dt><font face="helvetica, arial"><a href="edtlib.html#Range">Range</a>
+</font></dt><dt><font face="helvetica, arial"><a href="edtlib.html#Register">Register</a>
+</font></dt></dl>
+</dd>
+</dl>
+ <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Binding">class <strong>Binding</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Binding">Binding</a>(path:&nbsp;Optional[str],&nbsp;fname2path:&nbsp;Dict[str,&nbsp;str],&nbsp;raw:&nbsp;Any&nbsp;=&nbsp;None,&nbsp;require_compatible:&nbsp;bool&nbsp;=&nbsp;True,&nbsp;require_description:&nbsp;bool&nbsp;=&nbsp;True)<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;parsed&nbsp;binding.<br>
+&nbsp;<br>
+These&nbsp;attributes&nbsp;are&nbsp;available&nbsp;on&nbsp;<a href="#Binding">Binding</a>&nbsp;objects:<br>
+&nbsp;<br>
+path:<br>
+&nbsp;&nbsp;The&nbsp;absolute&nbsp;path&nbsp;to&nbsp;the&nbsp;file&nbsp;defining&nbsp;the&nbsp;binding.<br>
+&nbsp;<br>
+description:<br>
+&nbsp;&nbsp;The&nbsp;free-form&nbsp;description&nbsp;of&nbsp;the&nbsp;binding,&nbsp;or&nbsp;None.<br>
+&nbsp;<br>
+compatible:<br>
+&nbsp;&nbsp;The&nbsp;compatible&nbsp;string&nbsp;the&nbsp;binding&nbsp;matches.<br>
+&nbsp;<br>
+&nbsp;&nbsp;This&nbsp;may&nbsp;be&nbsp;None.&nbsp;For&nbsp;example,&nbsp;it's&nbsp;None&nbsp;when&nbsp;the&nbsp;<a href="#Binding">Binding</a>&nbsp;is&nbsp;inferred<br>
+&nbsp;&nbsp;from&nbsp;node&nbsp;properties.&nbsp;It&nbsp;can&nbsp;also&nbsp;be&nbsp;None&nbsp;for&nbsp;<a href="#Binding">Binding</a>&nbsp;objects&nbsp;created<br>
+&nbsp;&nbsp;using&nbsp;'child-binding:'&nbsp;with&nbsp;no&nbsp;compatible.<br>
+&nbsp;<br>
+prop2specs:<br>
+&nbsp;&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;property&nbsp;names&nbsp;to&nbsp;<a href="#PropertySpec">PropertySpec</a>&nbsp;objects<br>
+&nbsp;&nbsp;describing&nbsp;those&nbsp;properties'&nbsp;values.<br>
+&nbsp;<br>
+specifier2cells:<br>
+&nbsp;&nbsp;A&nbsp;dict&nbsp;that&nbsp;maps&nbsp;specifier&nbsp;space&nbsp;names&nbsp;(like&nbsp;"gpio",<br>
+&nbsp;&nbsp;"clock",&nbsp;"pwm",&nbsp;etc.)&nbsp;to&nbsp;lists&nbsp;of&nbsp;cell&nbsp;names.<br>
+&nbsp;<br>
+&nbsp;&nbsp;For&nbsp;example,&nbsp;if&nbsp;the&nbsp;binding&nbsp;YAML&nbsp;contains&nbsp;'pin'&nbsp;and&nbsp;'flags'&nbsp;cell&nbsp;names<br>
+&nbsp;&nbsp;for&nbsp;the&nbsp;'gpio'&nbsp;specifier&nbsp;space,&nbsp;like&nbsp;this:<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;gpio-cells:<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;pin<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;flags<br>
+&nbsp;<br>
+&nbsp;&nbsp;Then&nbsp;the&nbsp;<a href="#Binding">Binding</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;will&nbsp;have&nbsp;a&nbsp;'specifier2cells'&nbsp;attribute&nbsp;mapping<br>
+&nbsp;&nbsp;"gpio"&nbsp;to&nbsp;["pin",&nbsp;"flags"].&nbsp;A&nbsp;missing&nbsp;key&nbsp;should&nbsp;be&nbsp;interpreted&nbsp;as&nbsp;zero<br>
+&nbsp;&nbsp;cells.<br>
+&nbsp;<br>
+raw:<br>
+&nbsp;&nbsp;The&nbsp;binding&nbsp;as&nbsp;an&nbsp;<a href="builtins.html#object">object</a>&nbsp;parsed&nbsp;from&nbsp;YAML.<br>
+&nbsp;<br>
+bus:<br>
+&nbsp;&nbsp;If&nbsp;nodes&nbsp;with&nbsp;this&nbsp;binding's&nbsp;'compatible'&nbsp;describe&nbsp;a&nbsp;bus,&nbsp;a&nbsp;string<br>
+&nbsp;&nbsp;describing&nbsp;the&nbsp;bus&nbsp;type&nbsp;(like&nbsp;"i2c")&nbsp;or&nbsp;a&nbsp;list&nbsp;describing&nbsp;supported<br>
+&nbsp;&nbsp;protocols&nbsp;(like&nbsp;["i3c",&nbsp;"i2c"]).&nbsp;None&nbsp;otherwise.<br>
+&nbsp;<br>
+&nbsp;&nbsp;Note&nbsp;that&nbsp;this&nbsp;is&nbsp;the&nbsp;raw&nbsp;value&nbsp;from&nbsp;the&nbsp;binding&nbsp;where&nbsp;it&nbsp;can&nbsp;be<br>
+&nbsp;&nbsp;a&nbsp;string&nbsp;or&nbsp;a&nbsp;list.&nbsp;Use&nbsp;"buses"&nbsp;instead&nbsp;unless&nbsp;you&nbsp;need&nbsp;the&nbsp;raw<br>
+&nbsp;&nbsp;value,&nbsp;where&nbsp;"buses"&nbsp;is&nbsp;always&nbsp;a&nbsp;list.<br>
+&nbsp;<br>
+buses:<br>
+&nbsp;&nbsp;Deprived&nbsp;property&nbsp;from&nbsp;'bus'&nbsp;where&nbsp;'buses'&nbsp;is&nbsp;a&nbsp;list&nbsp;of&nbsp;<a href="#Binding-bus">bus</a>(es),<br>
+&nbsp;&nbsp;for&nbsp;example,&nbsp;["i2c"]&nbsp;or&nbsp;["i3c",&nbsp;"i2c"].&nbsp;Or&nbsp;an&nbsp;empty&nbsp;list&nbsp;if&nbsp;there&nbsp;is<br>
+&nbsp;&nbsp;no&nbsp;'bus:'&nbsp;in&nbsp;this&nbsp;binding.<br>
+&nbsp;<br>
+on_bus:<br>
+&nbsp;&nbsp;If&nbsp;nodes&nbsp;with&nbsp;this&nbsp;binding's&nbsp;'compatible'&nbsp;appear&nbsp;on&nbsp;a&nbsp;bus,&nbsp;a&nbsp;string<br>
+&nbsp;&nbsp;describing&nbsp;the&nbsp;bus&nbsp;type&nbsp;(like&nbsp;"i2c").&nbsp;None&nbsp;otherwise.<br>
+&nbsp;<br>
+child_binding:<br>
+&nbsp;&nbsp;If&nbsp;this&nbsp;binding&nbsp;describes&nbsp;the&nbsp;properties&nbsp;of&nbsp;child&nbsp;nodes,&nbsp;then<br>
+&nbsp;&nbsp;this&nbsp;is&nbsp;a&nbsp;<a href="#Binding">Binding</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;for&nbsp;those&nbsp;children;&nbsp;it&nbsp;is&nbsp;None&nbsp;otherwise.<br>
+&nbsp;&nbsp;A&nbsp;<a href="#Binding">Binding</a>&nbsp;<a href="builtins.html#object">object</a>'s&nbsp;'child_binding.child_binding'&nbsp;is&nbsp;not&nbsp;None&nbsp;if&nbsp;there<br>
+&nbsp;&nbsp;are&nbsp;multiple&nbsp;levels&nbsp;of&nbsp;'child-binding'&nbsp;descriptions&nbsp;in&nbsp;the&nbsp;binding.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Binding-__init__"><strong>__init__</strong></a>(self, path: Optional[str], fname2path: Dict[str, str], raw: Any = None, require_compatible: bool = True, require_description: bool = True)</dt><dd><tt><a href="#Binding">Binding</a>&nbsp;constructor.<br>
+&nbsp;<br>
+path:<br>
+&nbsp;&nbsp;Path&nbsp;to&nbsp;binding&nbsp;YAML&nbsp;file.&nbsp;May&nbsp;be&nbsp;None.<br>
+&nbsp;<br>
+fname2path:<br>
+&nbsp;&nbsp;Map&nbsp;from&nbsp;include&nbsp;files&nbsp;to&nbsp;their&nbsp;absolute&nbsp;paths.&nbsp;Must<br>
+&nbsp;&nbsp;not&nbsp;be&nbsp;None,&nbsp;but&nbsp;may&nbsp;be&nbsp;empty.<br>
+&nbsp;<br>
+raw:<br>
+&nbsp;&nbsp;Optional&nbsp;raw&nbsp;content&nbsp;in&nbsp;the&nbsp;binding.<br>
+&nbsp;&nbsp;This&nbsp;does&nbsp;not&nbsp;have&nbsp;to&nbsp;have&nbsp;any&nbsp;"include:"&nbsp;lines&nbsp;resolved.<br>
+&nbsp;&nbsp;May&nbsp;be&nbsp;left&nbsp;out,&nbsp;in&nbsp;which&nbsp;case&nbsp;'path'&nbsp;is&nbsp;opened&nbsp;and&nbsp;read.<br>
+&nbsp;&nbsp;This&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;resolve&nbsp;child&nbsp;bindings,&nbsp;for&nbsp;example.<br>
+&nbsp;<br>
+require_compatible:<br>
+&nbsp;&nbsp;If&nbsp;True,&nbsp;it&nbsp;is&nbsp;an&nbsp;error&nbsp;if&nbsp;the&nbsp;binding&nbsp;does&nbsp;not&nbsp;contain&nbsp;a<br>
+&nbsp;&nbsp;"compatible:"&nbsp;line.&nbsp;If&nbsp;False,&nbsp;a&nbsp;missing&nbsp;"compatible:"&nbsp;is<br>
+&nbsp;&nbsp;not&nbsp;an&nbsp;error.&nbsp;Either&nbsp;way,&nbsp;"compatible:"&nbsp;must&nbsp;be&nbsp;a&nbsp;string<br>
+&nbsp;&nbsp;if&nbsp;it&nbsp;is&nbsp;present&nbsp;in&nbsp;the&nbsp;binding.<br>
+&nbsp;<br>
+require_description:<br>
+&nbsp;&nbsp;If&nbsp;True,&nbsp;it&nbsp;is&nbsp;an&nbsp;error&nbsp;if&nbsp;the&nbsp;binding&nbsp;does&nbsp;not&nbsp;contain&nbsp;a<br>
+&nbsp;&nbsp;"description:"&nbsp;line.&nbsp;If&nbsp;False,&nbsp;a&nbsp;missing&nbsp;"description:"&nbsp;is<br>
+&nbsp;&nbsp;not&nbsp;an&nbsp;error.&nbsp;Either&nbsp;way,&nbsp;"description:"&nbsp;must&nbsp;be&nbsp;a&nbsp;string<br>
+&nbsp;&nbsp;if&nbsp;it&nbsp;is&nbsp;present&nbsp;in&nbsp;the&nbsp;binding.</tt></dd></dl>
+
+<dl><dt><a name="Binding-__repr__"><strong>__repr__</strong></a>(self) -&gt; str</dt><dd><tt>Return&nbsp;repr(self).</tt></dd></dl>
+
+<hr>
+Readonly properties defined here:<br>
+<dl><dt><strong>bus</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>buses</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>compatible</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>description</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>on_bus</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="ControllerAndData">class <strong>ControllerAndData</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#ControllerAndData">ControllerAndData</a>(node:&nbsp;'<a href="#Node">Node</a>',&nbsp;controller:&nbsp;'<a href="#Node">Node</a>',&nbsp;data:&nbsp;dict,&nbsp;name:&nbsp;Optional[str],&nbsp;basename:&nbsp;Optional[str])&nbsp;-&amp;gt;&nbsp;None<br>
+&nbsp;<br>
+Represents&nbsp;an&nbsp;entry&nbsp;in&nbsp;an&nbsp;'interrupts'&nbsp;or&nbsp;'type:&nbsp;phandle-array'&nbsp;property<br>
+value,&nbsp;e.g.&nbsp;&lt;&amp;ctrl-1&nbsp;4&nbsp;0&gt;&nbsp;in<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;cs-gpios&nbsp;=&nbsp;&lt;&amp;ctrl-1&nbsp;4&nbsp;0&nbsp;&amp;ctrl-2&nbsp;3&nbsp;4&gt;;<br>
+&nbsp;<br>
+These&nbsp;attributes&nbsp;are&nbsp;available&nbsp;on&nbsp;<a href="#ControllerAndData">ControllerAndData</a>&nbsp;objects:<br>
+&nbsp;<br>
+node:<br>
+&nbsp;&nbsp;The&nbsp;<a href="#Node">Node</a>&nbsp;instance&nbsp;the&nbsp;property&nbsp;appears&nbsp;on<br>
+&nbsp;<br>
+controller:<br>
+&nbsp;&nbsp;The&nbsp;<a href="#Node">Node</a>&nbsp;instance&nbsp;for&nbsp;the&nbsp;controller&nbsp;(e.g.&nbsp;the&nbsp;controller&nbsp;the&nbsp;interrupt<br>
+&nbsp;&nbsp;gets&nbsp;sent&nbsp;to&nbsp;for&nbsp;interrupts)<br>
+&nbsp;<br>
+data:<br>
+&nbsp;&nbsp;A&nbsp;dictionary&nbsp;that&nbsp;maps&nbsp;names&nbsp;from&nbsp;the&nbsp;*-cells&nbsp;key&nbsp;in&nbsp;the&nbsp;binding&nbsp;for&nbsp;the<br>
+&nbsp;&nbsp;controller&nbsp;to&nbsp;data&nbsp;values,&nbsp;e.g.&nbsp;{"pin":&nbsp;4,&nbsp;"flags":&nbsp;0}&nbsp;for&nbsp;the&nbsp;example<br>
+&nbsp;&nbsp;above.<br>
+&nbsp;<br>
+&nbsp;&nbsp;'interrupts&nbsp;=&nbsp;&lt;1&nbsp;2&gt;'&nbsp;might&nbsp;give&nbsp;{"irq":&nbsp;1,&nbsp;"level":&nbsp;2}.<br>
+&nbsp;<br>
+name:<br>
+&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;entry&nbsp;as&nbsp;given&nbsp;in<br>
+&nbsp;&nbsp;'interrupt-names'/'gpio-names'/'pwm-names'/etc.,&nbsp;or&nbsp;None&nbsp;if&nbsp;there&nbsp;is&nbsp;no<br>
+&nbsp;&nbsp;*-names&nbsp;property<br>
+&nbsp;<br>
+basename:<br>
+&nbsp;&nbsp;Basename&nbsp;for&nbsp;the&nbsp;controller&nbsp;when&nbsp;supporting&nbsp;named&nbsp;cells<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="ControllerAndData-__eq__"><strong>__eq__</strong></a>(self, other)</dt><dd><tt>Return&nbsp;self==value.</tt></dd></dl>
+
+<dl><dt><a name="ControllerAndData-__init__"><strong>__init__</strong></a>(self, node: 'Node', controller: 'Node', data: dict, name: Optional[str], basename: Optional[str]) -&gt; None</dt><dd><tt>Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</tt></dd></dl>
+
+<dl><dt><a name="ControllerAndData-__repr__"><strong>__repr__</strong></a>(self)</dt><dd><tt>Return&nbsp;repr(self).</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>__annotations__</strong> = {'basename': typing.Optional[str], 'controller': 'Node', 'data': &lt;class 'dict'&gt;, 'name': typing.Optional[str], 'node': 'Node'}</dl>
+
+<dl><dt><strong>__dataclass_fields__</strong> = {'basename': Field(name='basename',type=typing.Optional[str],...appingproxy({}),kw_only=False,_field_type=_FIELD), 'controller': Field(name='controller',type='Node',default=&lt;dat...appingproxy({}),kw_only=False,_field_type=_FIELD), 'data': Field(name='data',type=&lt;class 'dict'&gt;,default=&lt;d...appingproxy({}),kw_only=False,_field_type=_FIELD), 'name': Field(name='name',type=typing.Optional[str],defa...appingproxy({}),kw_only=False,_field_type=_FIELD), 'node': Field(name='node',type='Node',default=&lt;dataclass...appingproxy({}),kw_only=False,_field_type=_FIELD)}</dl>
+
+<dl><dt><strong>__dataclass_params__</strong> = _DataclassParams(init=True,repr=True,eq=True,order=False,unsafe_hash=False,frozen=False)</dl>
+
+<dl><dt><strong>__hash__</strong> = None</dl>
+
+<dl><dt><strong>__match_args__</strong> = ('node', 'controller', 'data', 'name', 'basename')</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="EDT">class <strong>EDT</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#EDT">EDT</a>(dts:&nbsp;Optional[str],&nbsp;bindings_dirs:&nbsp;List[str],&nbsp;warn_reg_unit_address_mismatch:&nbsp;bool&nbsp;=&nbsp;True,&nbsp;default_prop_types:&nbsp;bool&nbsp;=&nbsp;True,&nbsp;support_fixed_partitions_on_any_bus:&nbsp;bool&nbsp;=&nbsp;True,&nbsp;infer_binding_for_paths:&nbsp;Optional[Iterable[str]]&nbsp;=&nbsp;None,&nbsp;vendor_prefixes:&nbsp;Optional[Dict[str,&nbsp;str]]&nbsp;=&nbsp;None,&nbsp;werror:&nbsp;bool&nbsp;=&nbsp;False)<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;devicetree&nbsp;augmented&nbsp;with&nbsp;information&nbsp;from&nbsp;bindings.<br>
+&nbsp;<br>
+These&nbsp;attributes&nbsp;are&nbsp;available&nbsp;on&nbsp;<a href="#EDT">EDT</a>&nbsp;objects:<br>
+&nbsp;<br>
+nodes:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;<a href="#Node">Node</a>&nbsp;objects&nbsp;for&nbsp;the&nbsp;nodes&nbsp;that&nbsp;appear&nbsp;in&nbsp;the&nbsp;devicetree<br>
+&nbsp;<br>
+compat2nodes:<br>
+&nbsp;&nbsp;A&nbsp;collections.defaultdict&nbsp;that&nbsp;maps&nbsp;each&nbsp;'compatible'&nbsp;string&nbsp;that&nbsp;appears<br>
+&nbsp;&nbsp;on&nbsp;some&nbsp;<a href="#Node">Node</a>&nbsp;to&nbsp;a&nbsp;list&nbsp;of&nbsp;Nodes&nbsp;with&nbsp;that&nbsp;compatible.<br>
+&nbsp;<br>
+compat2okay:<br>
+&nbsp;&nbsp;Like&nbsp;compat2nodes,&nbsp;but&nbsp;just&nbsp;for&nbsp;nodes&nbsp;with&nbsp;status&nbsp;'okay'.<br>
+&nbsp;<br>
+compat2vendor:<br>
+&nbsp;&nbsp;A&nbsp;collections.defaultdict&nbsp;that&nbsp;maps&nbsp;each&nbsp;'compatible'&nbsp;string&nbsp;that&nbsp;appears<br>
+&nbsp;&nbsp;on&nbsp;some&nbsp;<a href="#Node">Node</a>&nbsp;to&nbsp;a&nbsp;vendor&nbsp;name&nbsp;parsed&nbsp;from&nbsp;vendor_prefixes.<br>
+&nbsp;<br>
+compat2model:<br>
+&nbsp;&nbsp;A&nbsp;collections.defaultdict&nbsp;that&nbsp;maps&nbsp;each&nbsp;'compatible'&nbsp;string&nbsp;that&nbsp;appears<br>
+&nbsp;&nbsp;on&nbsp;some&nbsp;<a href="#Node">Node</a>&nbsp;to&nbsp;a&nbsp;model&nbsp;name&nbsp;parsed&nbsp;from&nbsp;that&nbsp;compatible.<br>
+&nbsp;<br>
+label2node:<br>
+&nbsp;&nbsp;A&nbsp;dict&nbsp;that&nbsp;maps&nbsp;a&nbsp;node&nbsp;label&nbsp;to&nbsp;the&nbsp;node&nbsp;with&nbsp;that&nbsp;label.<br>
+&nbsp;<br>
+dep_ord2node:<br>
+&nbsp;&nbsp;A&nbsp;dict&nbsp;that&nbsp;maps&nbsp;an&nbsp;ordinal&nbsp;to&nbsp;the&nbsp;node&nbsp;with&nbsp;that&nbsp;dependency&nbsp;ordinal.<br>
+&nbsp;<br>
+chosen_nodes:<br>
+&nbsp;&nbsp;A&nbsp;dict&nbsp;that&nbsp;maps&nbsp;the&nbsp;properties&nbsp;defined&nbsp;on&nbsp;the&nbsp;devicetree's&nbsp;/chosen<br>
+&nbsp;&nbsp;node&nbsp;to&nbsp;their&nbsp;values.&nbsp;'chosen'&nbsp;is&nbsp;indexed&nbsp;by&nbsp;property&nbsp;name&nbsp;(a&nbsp;string),<br>
+&nbsp;&nbsp;and&nbsp;values&nbsp;are&nbsp;converted&nbsp;to&nbsp;<a href="#Node">Node</a>&nbsp;objects.&nbsp;Note&nbsp;that&nbsp;properties&nbsp;of&nbsp;the<br>
+&nbsp;&nbsp;/chosen&nbsp;node&nbsp;which&nbsp;can't&nbsp;be&nbsp;converted&nbsp;to&nbsp;a&nbsp;<a href="#Node">Node</a>&nbsp;are&nbsp;not&nbsp;included&nbsp;in<br>
+&nbsp;&nbsp;the&nbsp;value.<br>
+&nbsp;<br>
+dts_path:<br>
+&nbsp;&nbsp;The&nbsp;.dts&nbsp;path&nbsp;passed&nbsp;to&nbsp;<a href="#EDT-__init__">__init__</a>()<br>
+&nbsp;<br>
+dts_source:<br>
+&nbsp;&nbsp;The&nbsp;final&nbsp;DTS&nbsp;source&nbsp;code&nbsp;of&nbsp;the&nbsp;loaded&nbsp;devicetree&nbsp;after&nbsp;merging&nbsp;nodes<br>
+&nbsp;&nbsp;and&nbsp;processing&nbsp;/delete-node/&nbsp;and&nbsp;/delete-property/,&nbsp;as&nbsp;a&nbsp;string<br>
+&nbsp;<br>
+bindings_dirs:<br>
+&nbsp;&nbsp;The&nbsp;bindings&nbsp;directory&nbsp;paths&nbsp;passed&nbsp;to&nbsp;<a href="#EDT-__init__">__init__</a>()<br>
+&nbsp;<br>
+scc_order:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;lists&nbsp;of&nbsp;Nodes.&nbsp;All&nbsp;elements&nbsp;of&nbsp;each&nbsp;list<br>
+&nbsp;&nbsp;depend&nbsp;on&nbsp;each&nbsp;other,&nbsp;and&nbsp;the&nbsp;Nodes&nbsp;in&nbsp;any&nbsp;list&nbsp;do&nbsp;not&nbsp;depend<br>
+&nbsp;&nbsp;on&nbsp;any&nbsp;<a href="#Node">Node</a>&nbsp;in&nbsp;a&nbsp;subsequent&nbsp;list.&nbsp;Each&nbsp;list&nbsp;defines&nbsp;a&nbsp;Strongly<br>
+&nbsp;&nbsp;Connected&nbsp;Component&nbsp;(SCC)&nbsp;of&nbsp;the&nbsp;graph.<br>
+&nbsp;<br>
+&nbsp;&nbsp;For&nbsp;an&nbsp;acyclic&nbsp;graph&nbsp;each&nbsp;list&nbsp;will&nbsp;be&nbsp;a&nbsp;singleton.&nbsp;Cycles<br>
+&nbsp;&nbsp;will&nbsp;be&nbsp;represented&nbsp;by&nbsp;lists&nbsp;with&nbsp;multiple&nbsp;nodes.&nbsp;Cycles&nbsp;are<br>
+&nbsp;&nbsp;not&nbsp;expected&nbsp;to&nbsp;be&nbsp;present&nbsp;in&nbsp;devicetree&nbsp;graphs.<br>
+&nbsp;<br>
+The&nbsp;standard&nbsp;library's&nbsp;pickle&nbsp;module&nbsp;can&nbsp;be&nbsp;used&nbsp;to&nbsp;marshal&nbsp;and<br>
+unmarshal&nbsp;<a href="#EDT">EDT</a>&nbsp;objects.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="EDT-__deepcopy__"><strong>__deepcopy__</strong></a>(self, memo) -&gt; 'EDT'</dt><dd><tt>Implements&nbsp;support&nbsp;for&nbsp;the&nbsp;standard&nbsp;library&nbsp;copy.deepcopy()<br>
+function&nbsp;on&nbsp;<a href="#EDT">EDT</a>&nbsp;instances.</tt></dd></dl>
+
+<dl><dt><a name="EDT-__init__"><strong>__init__</strong></a>(self, dts: Optional[str], bindings_dirs: List[str], warn_reg_unit_address_mismatch: bool = True, default_prop_types: bool = True, support_fixed_partitions_on_any_bus: bool = True, infer_binding_for_paths: Optional[Iterable[str]] = None, vendor_prefixes: Optional[Dict[str, str]] = None, werror: bool = False)</dt><dd><tt><a href="#EDT">EDT</a>&nbsp;constructor.<br>
+&nbsp;<br>
+dts:<br>
+&nbsp;&nbsp;Path&nbsp;to&nbsp;devicetree&nbsp;.dts&nbsp;file.&nbsp;Passing&nbsp;None&nbsp;for&nbsp;this&nbsp;value<br>
+&nbsp;&nbsp;is&nbsp;only&nbsp;for&nbsp;internal&nbsp;use;&nbsp;do&nbsp;not&nbsp;do&nbsp;that&nbsp;outside&nbsp;of&nbsp;edtlib.<br>
+&nbsp;<br>
+bindings_dirs:<br>
+&nbsp;&nbsp;List&nbsp;of&nbsp;paths&nbsp;to&nbsp;directories&nbsp;containing&nbsp;bindings,&nbsp;in&nbsp;YAML&nbsp;format.<br>
+&nbsp;&nbsp;These&nbsp;directories&nbsp;are&nbsp;recursively&nbsp;searched&nbsp;for&nbsp;.yaml&nbsp;files.<br>
+&nbsp;<br>
+warn_reg_unit_address_mismatch&nbsp;(default:&nbsp;True):<br>
+&nbsp;&nbsp;If&nbsp;True,&nbsp;a&nbsp;warning&nbsp;is&nbsp;logged&nbsp;if&nbsp;a&nbsp;node&nbsp;has&nbsp;a&nbsp;'reg'&nbsp;property&nbsp;where<br>
+&nbsp;&nbsp;the&nbsp;address&nbsp;of&nbsp;the&nbsp;first&nbsp;entry&nbsp;does&nbsp;not&nbsp;match&nbsp;the&nbsp;unit&nbsp;address&nbsp;of&nbsp;the<br>
+&nbsp;&nbsp;node<br>
+&nbsp;<br>
+default_prop_types&nbsp;(default:&nbsp;True):<br>
+&nbsp;&nbsp;If&nbsp;True,&nbsp;default&nbsp;property&nbsp;types&nbsp;will&nbsp;be&nbsp;used&nbsp;when&nbsp;a&nbsp;node&nbsp;has&nbsp;no<br>
+&nbsp;&nbsp;bindings.<br>
+&nbsp;<br>
+support_fixed_partitions_on_any_bus&nbsp;(default&nbsp;True):<br>
+&nbsp;&nbsp;If&nbsp;True,&nbsp;set&nbsp;the&nbsp;<a href="#Node">Node</a>.bus&nbsp;for&nbsp;'fixed-partitions'&nbsp;compatible&nbsp;nodes<br>
+&nbsp;&nbsp;to&nbsp;None.&nbsp;&nbsp;This&nbsp;allows&nbsp;'fixed-partitions'&nbsp;binding&nbsp;to&nbsp;match&nbsp;regardless<br>
+&nbsp;&nbsp;of&nbsp;the&nbsp;bus&nbsp;the&nbsp;'fixed-partition'&nbsp;is&nbsp;under.<br>
+&nbsp;<br>
+infer_binding_for_paths&nbsp;(default:&nbsp;None):<br>
+&nbsp;&nbsp;An&nbsp;iterable&nbsp;of&nbsp;devicetree&nbsp;paths&nbsp;identifying&nbsp;nodes&nbsp;for&nbsp;which&nbsp;bindings<br>
+&nbsp;&nbsp;should&nbsp;be&nbsp;inferred&nbsp;from&nbsp;the&nbsp;node&nbsp;content.&nbsp;&nbsp;(Child&nbsp;nodes&nbsp;are&nbsp;not<br>
+&nbsp;&nbsp;processed.)&nbsp;&nbsp;Pass&nbsp;none&nbsp;if&nbsp;no&nbsp;nodes&nbsp;should&nbsp;support&nbsp;inferred&nbsp;bindings.<br>
+&nbsp;<br>
+vendor_prefixes&nbsp;(default:&nbsp;None):<br>
+&nbsp;&nbsp;A&nbsp;dict&nbsp;mapping&nbsp;vendor&nbsp;prefixes&nbsp;in&nbsp;compatible&nbsp;properties&nbsp;to&nbsp;their<br>
+&nbsp;&nbsp;descriptions.&nbsp;If&nbsp;given,&nbsp;compatibles&nbsp;in&nbsp;the&nbsp;form&nbsp;"manufacturer,device"<br>
+&nbsp;&nbsp;for&nbsp;which&nbsp;"manufacturer"&nbsp;is&nbsp;neither&nbsp;a&nbsp;key&nbsp;in&nbsp;the&nbsp;dict&nbsp;nor&nbsp;a&nbsp;specially<br>
+&nbsp;&nbsp;exempt&nbsp;set&nbsp;of&nbsp;grandfathered-in&nbsp;cases&nbsp;will&nbsp;cause&nbsp;warnings.<br>
+&nbsp;<br>
+werror&nbsp;(default:&nbsp;False):<br>
+&nbsp;&nbsp;If&nbsp;True,&nbsp;some&nbsp;edtlib&nbsp;specific&nbsp;warnings&nbsp;become&nbsp;errors.&nbsp;This&nbsp;currently<br>
+&nbsp;&nbsp;errors&nbsp;out&nbsp;if&nbsp;'dts'&nbsp;has&nbsp;any&nbsp;deprecated&nbsp;properties&nbsp;set,&nbsp;or&nbsp;an&nbsp;unknown<br>
+&nbsp;&nbsp;vendor&nbsp;prefix&nbsp;is&nbsp;used.</tt></dd></dl>
+
+<dl><dt><a name="EDT-__repr__"><strong>__repr__</strong></a>(self) -&gt; str</dt><dd><tt>Return&nbsp;repr(self).</tt></dd></dl>
+
+<dl><dt><a name="EDT-chosen_node"><strong>chosen_node</strong></a>(self, name: str) -&gt; Optional[edtlib.Node]</dt><dd><tt>Returns&nbsp;the&nbsp;<a href="#Node">Node</a>&nbsp;pointed&nbsp;at&nbsp;by&nbsp;the&nbsp;property&nbsp;named&nbsp;'name'&nbsp;in&nbsp;/chosen,&nbsp;or<br>
+None&nbsp;if&nbsp;the&nbsp;property&nbsp;is&nbsp;missing</tt></dd></dl>
+
+<dl><dt><a name="EDT-get_node"><strong>get_node</strong></a>(self, path: str) -&gt; edtlib.Node</dt><dd><tt>Returns&nbsp;the&nbsp;<a href="#Node">Node</a>&nbsp;at&nbsp;the&nbsp;DT&nbsp;path&nbsp;or&nbsp;alias&nbsp;'path'.&nbsp;Raises&nbsp;<a href="#EDTError">EDTError</a>&nbsp;if&nbsp;the<br>
+path&nbsp;or&nbsp;alias&nbsp;doesn't&nbsp;exist.</tt></dd></dl>
+
+<hr>
+Readonly properties defined here:<br>
+<dl><dt><strong>chosen_nodes</strong></dt>
+</dl>
+<dl><dt><strong>dts_source</strong></dt>
+</dl>
+<dl><dt><strong>scc_order</strong></dt>
+</dl>
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="EDTError">class <strong>EDTError</strong></a>(<a href="builtins.html#Exception">builtins.Exception</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="builtins.html#Exception">Exception</a>&nbsp;raised&nbsp;for&nbsp;devicetree-&nbsp;and&nbsp;binding-related&nbsp;errors<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%"><dl><dt>Method resolution order:</dt>
+<dd><a href="edtlib.html#EDTError">EDTError</a></dd>
+<dd><a href="builtins.html#Exception">builtins.Exception</a></dd>
+<dd><a href="builtins.html#BaseException">builtins.BaseException</a></dd>
+<dd><a href="builtins.html#object">builtins.object</a></dd>
+</dl>
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<hr>
+Methods inherited from <a href="builtins.html#Exception">builtins.Exception</a>:<br>
+<dl><dt><a name="EDTError-__init__"><strong>__init__</strong></a>(self, /, *args, **kwargs)</dt><dd><tt>Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</tt></dd></dl>
+
+<hr>
+Static methods inherited from <a href="builtins.html#Exception">builtins.Exception</a>:<br>
+<dl><dt><a name="EDTError-__new__"><strong>__new__</strong></a>(*args, **kwargs)<font color="#909090"><font face="helvetica, arial"> from <a href="builtins.html#type">builtins.type</a></font></font></dt><dd><tt>Create&nbsp;and&nbsp;return&nbsp;a&nbsp;new&nbsp;<a href="builtins.html#object">object</a>.&nbsp;&nbsp;See&nbsp;help(type)&nbsp;for&nbsp;accurate&nbsp;signature.</tt></dd></dl>
+
+<hr>
+Methods inherited from <a href="builtins.html#BaseException">builtins.BaseException</a>:<br>
+<dl><dt><a name="EDTError-__delattr__"><strong>__delattr__</strong></a>(self, name, /)</dt><dd><tt>Implement&nbsp;delattr(self,&nbsp;name).</tt></dd></dl>
+
+<dl><dt><a name="EDTError-__getattribute__"><strong>__getattribute__</strong></a>(self, name, /)</dt><dd><tt>Return&nbsp;getattr(self,&nbsp;name).</tt></dd></dl>
+
+<dl><dt><a name="EDTError-__reduce__"><strong>__reduce__</strong></a>(...)</dt><dd><tt>Helper&nbsp;for&nbsp;pickle.</tt></dd></dl>
+
+<dl><dt><a name="EDTError-__repr__"><strong>__repr__</strong></a>(self, /)</dt><dd><tt>Return&nbsp;repr(self).</tt></dd></dl>
+
+<dl><dt><a name="EDTError-__setattr__"><strong>__setattr__</strong></a>(self, name, value, /)</dt><dd><tt>Implement&nbsp;setattr(self,&nbsp;name,&nbsp;value).</tt></dd></dl>
+
+<dl><dt><a name="EDTError-__setstate__"><strong>__setstate__</strong></a>(...)</dt></dl>
+
+<dl><dt><a name="EDTError-__str__"><strong>__str__</strong></a>(self, /)</dt><dd><tt>Return&nbsp;str(self).</tt></dd></dl>
+
+<dl><dt><a name="EDTError-with_traceback"><strong>with_traceback</strong></a>(...)</dt><dd><tt><a href="builtins.html#Exception">Exception</a>.<a href="#EDTError-with_traceback">with_traceback</a>(tb)&nbsp;--<br>
+set&nbsp;self.<strong>__traceback__</strong>&nbsp;to&nbsp;tb&nbsp;and&nbsp;return&nbsp;self.</tt></dd></dl>
+
+<hr>
+Data descriptors inherited from <a href="builtins.html#BaseException">builtins.BaseException</a>:<br>
+<dl><dt><strong>__cause__</strong></dt>
+<dd><tt>exception&nbsp;cause</tt></dd>
+</dl>
+<dl><dt><strong>__context__</strong></dt>
+<dd><tt>exception&nbsp;context</tt></dd>
+</dl>
+<dl><dt><strong>__dict__</strong></dt>
+</dl>
+<dl><dt><strong>__suppress_context__</strong></dt>
+</dl>
+<dl><dt><strong>__traceback__</strong></dt>
+</dl>
+<dl><dt><strong>args</strong></dt>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Node">class <strong>Node</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Node">Node</a>(dt_node:&nbsp;devicetree.dtlib.<a href="#Node">Node</a>,&nbsp;edt:&nbsp;'<a href="#EDT">EDT</a>',&nbsp;compats:&nbsp;List[str])<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;devicetree&nbsp;node,&nbsp;augmented&nbsp;with&nbsp;information&nbsp;from&nbsp;bindings,&nbsp;and<br>
+with&nbsp;some&nbsp;interpretation&nbsp;of&nbsp;devicetree&nbsp;properties.&nbsp;There's&nbsp;a&nbsp;one-to-one<br>
+correspondence&nbsp;between&nbsp;devicetree&nbsp;nodes&nbsp;and&nbsp;Nodes.<br>
+&nbsp;<br>
+These&nbsp;attributes&nbsp;are&nbsp;available&nbsp;on&nbsp;<a href="#Node">Node</a>&nbsp;objects:<br>
+&nbsp;<br>
+edt:<br>
+&nbsp;&nbsp;The&nbsp;<a href="#EDT">EDT</a>&nbsp;instance&nbsp;this&nbsp;node&nbsp;is&nbsp;from<br>
+&nbsp;<br>
+name:<br>
+&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;node<br>
+&nbsp;<br>
+unit_addr:<br>
+&nbsp;&nbsp;An&nbsp;integer&nbsp;with&nbsp;the&nbsp;...@&lt;unit-address&gt;&nbsp;portion&nbsp;of&nbsp;the&nbsp;node&nbsp;name,<br>
+&nbsp;&nbsp;translated&nbsp;through&nbsp;any&nbsp;'ranges'&nbsp;properties&nbsp;on&nbsp;parent&nbsp;nodes,&nbsp;or&nbsp;None&nbsp;if<br>
+&nbsp;&nbsp;the&nbsp;node&nbsp;name&nbsp;has&nbsp;no&nbsp;unit-address&nbsp;portion.&nbsp;PCI&nbsp;devices&nbsp;use&nbsp;a&nbsp;different<br>
+&nbsp;&nbsp;node&nbsp;name&nbsp;format&nbsp;...@&lt;dev&gt;,&lt;func&gt;&nbsp;or&nbsp;...@&lt;dev&gt;&nbsp;(e.g.&nbsp;"pcie@1,0"),&nbsp;in<br>
+&nbsp;&nbsp;this&nbsp;case&nbsp;None&nbsp;is&nbsp;returned.<br>
+&nbsp;<br>
+description:<br>
+&nbsp;&nbsp;The&nbsp;description&nbsp;string&nbsp;from&nbsp;the&nbsp;binding&nbsp;for&nbsp;the&nbsp;node,&nbsp;or&nbsp;None&nbsp;if&nbsp;the&nbsp;node<br>
+&nbsp;&nbsp;has&nbsp;no&nbsp;binding.&nbsp;Leading&nbsp;and&nbsp;trailing&nbsp;whitespace&nbsp;(including&nbsp;newlines)&nbsp;is<br>
+&nbsp;&nbsp;removed.<br>
+&nbsp;<br>
+path:<br>
+&nbsp;&nbsp;The&nbsp;devicetree&nbsp;path&nbsp;of&nbsp;the&nbsp;node<br>
+&nbsp;<br>
+label:<br>
+&nbsp;&nbsp;The&nbsp;text&nbsp;from&nbsp;the&nbsp;'label'&nbsp;property&nbsp;on&nbsp;the&nbsp;node,&nbsp;or&nbsp;None&nbsp;if&nbsp;the&nbsp;node&nbsp;has<br>
+&nbsp;&nbsp;no&nbsp;'label'<br>
+&nbsp;<br>
+labels:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;all&nbsp;of&nbsp;the&nbsp;devicetree&nbsp;labels&nbsp;for&nbsp;the&nbsp;node,&nbsp;in&nbsp;the&nbsp;same&nbsp;order<br>
+&nbsp;&nbsp;as&nbsp;the&nbsp;labels&nbsp;appear,&nbsp;but&nbsp;with&nbsp;duplicates&nbsp;removed.<br>
+&nbsp;<br>
+&nbsp;&nbsp;This&nbsp;corresponds&nbsp;to&nbsp;the&nbsp;actual&nbsp;devicetree&nbsp;source&nbsp;labels,&nbsp;unlike&nbsp;the<br>
+&nbsp;&nbsp;"label"&nbsp;attribute,&nbsp;which&nbsp;is&nbsp;the&nbsp;value&nbsp;of&nbsp;a&nbsp;devicetree&nbsp;property&nbsp;named<br>
+&nbsp;&nbsp;"label".<br>
+&nbsp;<br>
+parent:<br>
+&nbsp;&nbsp;The&nbsp;<a href="#Node">Node</a>&nbsp;instance&nbsp;for&nbsp;the&nbsp;devicetree&nbsp;parent&nbsp;of&nbsp;the&nbsp;<a href="#Node">Node</a>,&nbsp;or&nbsp;None&nbsp;if&nbsp;the<br>
+&nbsp;&nbsp;node&nbsp;is&nbsp;the&nbsp;root&nbsp;node<br>
+&nbsp;<br>
+children:<br>
+&nbsp;&nbsp;A&nbsp;dictionary&nbsp;with&nbsp;the&nbsp;<a href="#Node">Node</a>&nbsp;instances&nbsp;for&nbsp;the&nbsp;devicetree&nbsp;children&nbsp;of&nbsp;the<br>
+&nbsp;&nbsp;node,&nbsp;indexed&nbsp;by&nbsp;name<br>
+&nbsp;<br>
+dep_ordinal:<br>
+&nbsp;&nbsp;A&nbsp;non-negative&nbsp;integer&nbsp;value&nbsp;such&nbsp;that&nbsp;the&nbsp;value&nbsp;for&nbsp;a&nbsp;<a href="#Node">Node</a>&nbsp;is<br>
+&nbsp;&nbsp;less&nbsp;than&nbsp;the&nbsp;value&nbsp;for&nbsp;all&nbsp;Nodes&nbsp;that&nbsp;depend&nbsp;on&nbsp;it.<br>
+&nbsp;<br>
+&nbsp;&nbsp;The&nbsp;ordinal&nbsp;is&nbsp;defined&nbsp;for&nbsp;all&nbsp;Nodes,&nbsp;and&nbsp;is&nbsp;unique&nbsp;among&nbsp;nodes&nbsp;in&nbsp;its<br>
+&nbsp;&nbsp;<a href="#EDT">EDT</a>&nbsp;'nodes'&nbsp;list.<br>
+&nbsp;<br>
+required_by:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;with&nbsp;the&nbsp;nodes&nbsp;that&nbsp;directly&nbsp;depend&nbsp;on&nbsp;the&nbsp;node<br>
+&nbsp;<br>
+depends_on:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;with&nbsp;the&nbsp;nodes&nbsp;that&nbsp;the&nbsp;node&nbsp;directly&nbsp;depends&nbsp;on<br>
+&nbsp;<br>
+status:<br>
+&nbsp;&nbsp;The&nbsp;node's&nbsp;status&nbsp;property&nbsp;value,&nbsp;as&nbsp;a&nbsp;string,&nbsp;or&nbsp;"okay"&nbsp;if&nbsp;the&nbsp;node<br>
+&nbsp;&nbsp;has&nbsp;no&nbsp;status&nbsp;property&nbsp;set.&nbsp;If&nbsp;the&nbsp;node's&nbsp;status&nbsp;property&nbsp;is&nbsp;"ok",<br>
+&nbsp;&nbsp;it&nbsp;is&nbsp;converted&nbsp;to&nbsp;"okay"&nbsp;for&nbsp;consistency.<br>
+&nbsp;<br>
+read_only:<br>
+&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;node&nbsp;has&nbsp;a&nbsp;'read-only'&nbsp;property,&nbsp;and&nbsp;False&nbsp;otherwise<br>
+&nbsp;<br>
+matching_compat:<br>
+&nbsp;&nbsp;The&nbsp;'compatible'&nbsp;string&nbsp;for&nbsp;the&nbsp;binding&nbsp;that&nbsp;matched&nbsp;the&nbsp;node,&nbsp;or&nbsp;None&nbsp;if<br>
+&nbsp;&nbsp;the&nbsp;node&nbsp;has&nbsp;no&nbsp;binding<br>
+&nbsp;<br>
+binding_path:<br>
+&nbsp;&nbsp;The&nbsp;path&nbsp;to&nbsp;the&nbsp;binding&nbsp;file&nbsp;for&nbsp;the&nbsp;node,&nbsp;or&nbsp;None&nbsp;if&nbsp;the&nbsp;node&nbsp;has&nbsp;no<br>
+&nbsp;&nbsp;binding<br>
+&nbsp;<br>
+compats:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;'compatible'&nbsp;strings&nbsp;for&nbsp;the&nbsp;node,&nbsp;in&nbsp;the&nbsp;same&nbsp;order&nbsp;that<br>
+&nbsp;&nbsp;they're&nbsp;listed&nbsp;in&nbsp;the&nbsp;.dts&nbsp;file<br>
+&nbsp;<br>
+ranges:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;<a href="#Range">Range</a>&nbsp;objects&nbsp;extracted&nbsp;from&nbsp;the&nbsp;node's&nbsp;ranges&nbsp;property.<br>
+&nbsp;&nbsp;The&nbsp;list&nbsp;is&nbsp;empty&nbsp;if&nbsp;the&nbsp;node&nbsp;does&nbsp;not&nbsp;have&nbsp;a&nbsp;range&nbsp;property.<br>
+&nbsp;<br>
+regs:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;<a href="#Register">Register</a>&nbsp;objects&nbsp;for&nbsp;the&nbsp;node's&nbsp;registers<br>
+&nbsp;<br>
+props:<br>
+&nbsp;&nbsp;A&nbsp;dict&nbsp;that&nbsp;maps&nbsp;property&nbsp;names&nbsp;to&nbsp;<a href="#Property">Property</a>&nbsp;objects.<br>
+&nbsp;&nbsp;<a href="#Property">Property</a>&nbsp;objects&nbsp;are&nbsp;created&nbsp;for&nbsp;all&nbsp;devicetree&nbsp;properties&nbsp;on&nbsp;the&nbsp;node<br>
+&nbsp;&nbsp;that&nbsp;are&nbsp;mentioned&nbsp;in&nbsp;'properties:'&nbsp;in&nbsp;the&nbsp;binding.<br>
+&nbsp;<br>
+aliases:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;aliases&nbsp;for&nbsp;the&nbsp;node.&nbsp;This&nbsp;is&nbsp;fetched&nbsp;from&nbsp;the&nbsp;/aliases&nbsp;node.<br>
+&nbsp;<br>
+interrupts:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;<a href="#ControllerAndData">ControllerAndData</a>&nbsp;objects&nbsp;for&nbsp;the&nbsp;interrupts&nbsp;generated&nbsp;by&nbsp;the<br>
+&nbsp;&nbsp;node.&nbsp;The&nbsp;list&nbsp;is&nbsp;empty&nbsp;if&nbsp;the&nbsp;node&nbsp;does&nbsp;not&nbsp;generate&nbsp;interrupts.<br>
+&nbsp;<br>
+pinctrls:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;<a href="#PinCtrl">PinCtrl</a>&nbsp;objects&nbsp;for&nbsp;the&nbsp;pinctrl-&lt;index&gt;&nbsp;properties&nbsp;on&nbsp;the<br>
+&nbsp;&nbsp;node,&nbsp;sorted&nbsp;by&nbsp;index.&nbsp;The&nbsp;list&nbsp;is&nbsp;empty&nbsp;if&nbsp;the&nbsp;node&nbsp;does&nbsp;not&nbsp;have&nbsp;any<br>
+&nbsp;&nbsp;pinctrl-&lt;index&gt;&nbsp;properties.<br>
+&nbsp;<br>
+buses:<br>
+&nbsp;&nbsp;If&nbsp;the&nbsp;node&nbsp;is&nbsp;a&nbsp;bus&nbsp;node&nbsp;(has&nbsp;a&nbsp;'bus:'&nbsp;key&nbsp;in&nbsp;its&nbsp;binding),&nbsp;then&nbsp;this<br>
+&nbsp;&nbsp;attribute&nbsp;holds&nbsp;the&nbsp;list&nbsp;of&nbsp;supported&nbsp;bus&nbsp;types,&nbsp;e.g.&nbsp;["i2c"],&nbsp;["spi"]<br>
+&nbsp;&nbsp;or&nbsp;["i3c",&nbsp;"i2c"]&nbsp;if&nbsp;multiple&nbsp;protocols&nbsp;are&nbsp;supported&nbsp;via&nbsp;the&nbsp;same&nbsp;bus.<br>
+&nbsp;&nbsp;If&nbsp;the&nbsp;node&nbsp;is&nbsp;not&nbsp;a&nbsp;bus&nbsp;node,&nbsp;then&nbsp;this&nbsp;attribute&nbsp;is&nbsp;an&nbsp;empty&nbsp;list.<br>
+&nbsp;<br>
+on_buses:<br>
+&nbsp;&nbsp;The&nbsp;bus&nbsp;the&nbsp;node&nbsp;appears&nbsp;on,&nbsp;e.g.&nbsp;["i2c"],&nbsp;["spi"]&nbsp;or&nbsp;["i3c",&nbsp;"i2c"]&nbsp;if<br>
+&nbsp;&nbsp;multiple&nbsp;protocols&nbsp;are&nbsp;supported&nbsp;via&nbsp;the&nbsp;same&nbsp;bus.&nbsp;The&nbsp;bus&nbsp;is&nbsp;determined<br>
+&nbsp;&nbsp;by&nbsp;searching&nbsp;upwards&nbsp;for&nbsp;a&nbsp;parent&nbsp;node&nbsp;whose&nbsp;binding&nbsp;has&nbsp;a&nbsp;'bus:'&nbsp;key,<br>
+&nbsp;&nbsp;returning&nbsp;the&nbsp;value&nbsp;of&nbsp;the&nbsp;first&nbsp;'bus:'&nbsp;key&nbsp;found.&nbsp;If&nbsp;none&nbsp;of&nbsp;the&nbsp;node's<br>
+&nbsp;&nbsp;parents&nbsp;has&nbsp;a&nbsp;'bus:'&nbsp;key,&nbsp;this&nbsp;attribute&nbsp;is&nbsp;an&nbsp;empty&nbsp;list.<br>
+&nbsp;<br>
+bus_node:<br>
+&nbsp;&nbsp;Like&nbsp;on_bus,&nbsp;but&nbsp;contains&nbsp;the&nbsp;<a href="#Node">Node</a>&nbsp;for&nbsp;the&nbsp;bus&nbsp;controller,&nbsp;or&nbsp;None&nbsp;if&nbsp;the<br>
+&nbsp;&nbsp;node&nbsp;is&nbsp;not&nbsp;on&nbsp;a&nbsp;bus.<br>
+&nbsp;<br>
+flash_controller:<br>
+&nbsp;&nbsp;The&nbsp;flash&nbsp;controller&nbsp;for&nbsp;the&nbsp;node.&nbsp;Only&nbsp;meaningful&nbsp;for&nbsp;nodes&nbsp;representing<br>
+&nbsp;&nbsp;flash&nbsp;partitions.<br>
+&nbsp;<br>
+spi_cs_gpio:<br>
+&nbsp;&nbsp;The&nbsp;device's&nbsp;SPI&nbsp;GPIO&nbsp;chip&nbsp;select&nbsp;as&nbsp;a&nbsp;<a href="#ControllerAndData">ControllerAndData</a>&nbsp;instance,&nbsp;if&nbsp;it<br>
+&nbsp;&nbsp;exists,&nbsp;and&nbsp;None&nbsp;otherwise.&nbsp;See<br>
+&nbsp;&nbsp;Documentation/devicetree/bindings/spi/spi-controller.yaml&nbsp;in&nbsp;the&nbsp;Linux&nbsp;kernel.<br>
+&nbsp;<br>
+gpio_hogs:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;<a href="#ControllerAndData">ControllerAndData</a>&nbsp;objects&nbsp;for&nbsp;the&nbsp;GPIOs&nbsp;hogged&nbsp;by&nbsp;the&nbsp;node.&nbsp;The<br>
+&nbsp;&nbsp;list&nbsp;is&nbsp;empty&nbsp;if&nbsp;the&nbsp;node&nbsp;does&nbsp;not&nbsp;hog&nbsp;any&nbsp;GPIOs.&nbsp;Only&nbsp;relevant&nbsp;for&nbsp;GPIO&nbsp;hog<br>
+&nbsp;&nbsp;nodes.<br>
+&nbsp;<br>
+is_pci_device:<br>
+&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;node&nbsp;is&nbsp;a&nbsp;PCI&nbsp;device.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Node-__init__"><strong>__init__</strong></a>(self, dt_node: devicetree.dtlib.Node, edt: 'EDT', compats: List[str])</dt><dd><tt>For&nbsp;internal&nbsp;use&nbsp;only;&nbsp;not&nbsp;meant&nbsp;to&nbsp;be&nbsp;used&nbsp;outside&nbsp;edtlib&nbsp;itself.</tt></dd></dl>
+
+<dl><dt><a name="Node-__repr__"><strong>__repr__</strong></a>(self) -&gt; str</dt><dd><tt>Return&nbsp;repr(self).</tt></dd></dl>
+
+<dl><dt><a name="Node-child_index"><strong>child_index</strong></a>(self, node) -&gt; int</dt><dd><tt>Get&nbsp;the&nbsp;index&nbsp;of&nbsp;*node*&nbsp;in&nbsp;self.<strong>children</strong>.<br>
+Raises&nbsp;KeyError&nbsp;if&nbsp;the&nbsp;argument&nbsp;is&nbsp;not&nbsp;a&nbsp;child&nbsp;of&nbsp;this&nbsp;node.</tt></dd></dl>
+
+<hr>
+Readonly properties defined here:<br>
+<dl><dt><strong>aliases</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>buses</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>children</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>depends_on</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>description</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring.</tt></dd>
+</dl>
+<dl><dt><strong>flash_controller</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>gpio_hogs</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>is_pci_device</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>label</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>labels</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>name</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>on_buses</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>parent</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>path</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>read_only</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>required_by</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>spi_cs_gpio</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>status</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>unit_addr</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="PinCtrl">class <strong>PinCtrl</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#PinCtrl">PinCtrl</a>(node:&nbsp;'<a href="#Node">Node</a>',&nbsp;name:&nbsp;Optional[str],&nbsp;conf_nodes:&nbsp;List[ForwardRef('<a href="#Node">Node</a>')])&nbsp;-&amp;gt;&nbsp;None<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;pin&nbsp;control&nbsp;configuration&nbsp;for&nbsp;a&nbsp;set&nbsp;of&nbsp;pins&nbsp;on&nbsp;a&nbsp;device,<br>
+e.g.&nbsp;pinctrl-0&nbsp;or&nbsp;pinctrl-1.<br>
+&nbsp;<br>
+These&nbsp;attributes&nbsp;are&nbsp;available&nbsp;on&nbsp;<a href="#PinCtrl">PinCtrl</a>&nbsp;objects:<br>
+&nbsp;<br>
+node:<br>
+&nbsp;&nbsp;The&nbsp;<a href="#Node">Node</a>&nbsp;instance&nbsp;the&nbsp;pinctrl-*&nbsp;property&nbsp;is&nbsp;on<br>
+&nbsp;<br>
+name:<br>
+&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;configuration,&nbsp;as&nbsp;given&nbsp;in&nbsp;pinctrl-names,&nbsp;or&nbsp;None&nbsp;if<br>
+&nbsp;&nbsp;there&nbsp;is&nbsp;no&nbsp;pinctrl-names&nbsp;property<br>
+&nbsp;<br>
+name_as_token:<br>
+&nbsp;&nbsp;Like&nbsp;'name',&nbsp;but&nbsp;with&nbsp;non-alphanumeric&nbsp;characters&nbsp;converted&nbsp;to&nbsp;underscores.<br>
+&nbsp;<br>
+conf_nodes:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;<a href="#Node">Node</a>&nbsp;instances&nbsp;for&nbsp;the&nbsp;pin&nbsp;configuration&nbsp;nodes,&nbsp;e.g.<br>
+&nbsp;&nbsp;the&nbsp;nodes&nbsp;pointed&nbsp;at&nbsp;by&nbsp;&amp;state_1&nbsp;and&nbsp;&amp;state_2&nbsp;in<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;pinctrl-0&nbsp;=&nbsp;&lt;&amp;state_1&nbsp;&amp;state_2&gt;;<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="PinCtrl-__eq__"><strong>__eq__</strong></a>(self, other)</dt><dd><tt>Return&nbsp;self==value.</tt></dd></dl>
+
+<dl><dt><a name="PinCtrl-__init__"><strong>__init__</strong></a>(self, node: 'Node', name: Optional[str], conf_nodes: List[ForwardRef('Node')]) -&gt; None</dt><dd><tt>Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</tt></dd></dl>
+
+<dl><dt><a name="PinCtrl-__repr__"><strong>__repr__</strong></a>(self)</dt><dd><tt>Return&nbsp;repr(self).</tt></dd></dl>
+
+<hr>
+Readonly properties defined here:<br>
+<dl><dt><strong>name_as_token</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>__annotations__</strong> = {'conf_nodes': typing.List[ForwardRef('Node')], 'name': typing.Optional[str], 'node': 'Node'}</dl>
+
+<dl><dt><strong>__dataclass_fields__</strong> = {'conf_nodes': Field(name='conf_nodes',type=typing.List[Forward...appingproxy({}),kw_only=False,_field_type=_FIELD), 'name': Field(name='name',type=typing.Optional[str],defa...appingproxy({}),kw_only=False,_field_type=_FIELD), 'node': Field(name='node',type='Node',default=&lt;dataclass...appingproxy({}),kw_only=False,_field_type=_FIELD)}</dl>
+
+<dl><dt><strong>__dataclass_params__</strong> = _DataclassParams(init=True,repr=True,eq=True,order=False,unsafe_hash=False,frozen=False)</dl>
+
+<dl><dt><strong>__hash__</strong> = None</dl>
+
+<dl><dt><strong>__match_args__</strong> = ('node', 'name', 'conf_nodes')</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Property">class <strong>Property</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Property">Property</a>(spec:&nbsp;edtlib.<a href="#PropertySpec">PropertySpec</a>,&nbsp;val:&nbsp;Union[int,&nbsp;str,&nbsp;List[int],&nbsp;List[str],&nbsp;ForwardRef('<a href="#Node">Node</a>'),&nbsp;List[ForwardRef('<a href="#Node">Node</a>')],&nbsp;List[Optional[ForwardRef('<a href="#ControllerAndData">ControllerAndData</a>')]],&nbsp;bytes,&nbsp;NoneType],&nbsp;node:&nbsp;'<a href="#Node">Node</a>')&nbsp;-&amp;gt;&nbsp;None<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;property&nbsp;on&nbsp;a&nbsp;<a href="#Node">Node</a>,&nbsp;as&nbsp;set&nbsp;in&nbsp;its&nbsp;DT&nbsp;node&nbsp;and&nbsp;with<br>
+additional&nbsp;info&nbsp;from&nbsp;the&nbsp;'properties:'&nbsp;section&nbsp;of&nbsp;the&nbsp;binding.<br>
+&nbsp;<br>
+Only&nbsp;properties&nbsp;mentioned&nbsp;in&nbsp;'properties:'&nbsp;get&nbsp;created.&nbsp;Properties&nbsp;of&nbsp;type<br>
+'compound'&nbsp;currently&nbsp;do&nbsp;not&nbsp;get&nbsp;<a href="#Property">Property</a>&nbsp;instances,&nbsp;as&nbsp;it's&nbsp;not&nbsp;clear<br>
+what&nbsp;to&nbsp;generate&nbsp;for&nbsp;them.<br>
+&nbsp;<br>
+These&nbsp;attributes&nbsp;are&nbsp;available&nbsp;on&nbsp;<a href="#Property">Property</a>&nbsp;objects.&nbsp;Several&nbsp;are<br>
+just&nbsp;convenience&nbsp;accessors&nbsp;for&nbsp;attributes&nbsp;on&nbsp;the&nbsp;<a href="#PropertySpec">PropertySpec</a>&nbsp;<a href="builtins.html#object">object</a><br>
+accessible&nbsp;via&nbsp;the&nbsp;'spec'&nbsp;attribute.<br>
+&nbsp;<br>
+These&nbsp;attributes&nbsp;are&nbsp;available&nbsp;on&nbsp;<a href="#Property">Property</a>&nbsp;objects:<br>
+&nbsp;<br>
+spec:<br>
+&nbsp;&nbsp;The&nbsp;<a href="#PropertySpec">PropertySpec</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;which&nbsp;specifies&nbsp;this&nbsp;property.<br>
+&nbsp;<br>
+val:<br>
+&nbsp;&nbsp;The&nbsp;value&nbsp;of&nbsp;the&nbsp;property,&nbsp;with&nbsp;the&nbsp;format&nbsp;determined&nbsp;by&nbsp;spec.type,<br>
+&nbsp;&nbsp;which&nbsp;comes&nbsp;from&nbsp;the&nbsp;'type:'&nbsp;string&nbsp;in&nbsp;the&nbsp;binding.<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;For&nbsp;'type:&nbsp;int/array/string/string-array',&nbsp;'val'&nbsp;is&nbsp;what&nbsp;you'd&nbsp;expect<br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;(a&nbsp;Python&nbsp;integer&nbsp;or&nbsp;string,&nbsp;or&nbsp;a&nbsp;list&nbsp;of&nbsp;them)<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;For&nbsp;'type:&nbsp;phandle'&nbsp;and&nbsp;'type:&nbsp;path',&nbsp;'val'&nbsp;is&nbsp;the&nbsp;pointed-to&nbsp;<a href="#Node">Node</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;instance<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;For&nbsp;'type:&nbsp;phandles',&nbsp;'val'&nbsp;is&nbsp;a&nbsp;list&nbsp;of&nbsp;the&nbsp;pointed-to&nbsp;<a href="#Node">Node</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;instances<br>
+&nbsp;<br>
+&nbsp;&nbsp;&nbsp;&nbsp;-&nbsp;For&nbsp;'type:&nbsp;phandle-array',&nbsp;'val'&nbsp;is&nbsp;a&nbsp;list&nbsp;of&nbsp;<a href="#ControllerAndData">ControllerAndData</a><br>
+&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;instances.&nbsp;See&nbsp;the&nbsp;documentation&nbsp;for&nbsp;that&nbsp;class.<br>
+&nbsp;<br>
+node:<br>
+&nbsp;&nbsp;The&nbsp;<a href="#Node">Node</a>&nbsp;instance&nbsp;the&nbsp;property&nbsp;is&nbsp;on<br>
+&nbsp;<br>
+name:<br>
+&nbsp;&nbsp;Convenience&nbsp;for&nbsp;spec.name.<br>
+&nbsp;<br>
+description:<br>
+&nbsp;&nbsp;Convenience&nbsp;for&nbsp;spec.description&nbsp;with&nbsp;leading&nbsp;and&nbsp;trailing&nbsp;whitespace<br>
+&nbsp;&nbsp;(including&nbsp;newlines)&nbsp;removed.&nbsp;May&nbsp;be&nbsp;None.<br>
+&nbsp;<br>
+type:<br>
+&nbsp;&nbsp;Convenience&nbsp;for&nbsp;spec.type.<br>
+&nbsp;<br>
+val_as_token:<br>
+&nbsp;&nbsp;The&nbsp;value&nbsp;of&nbsp;the&nbsp;property&nbsp;as&nbsp;a&nbsp;token,&nbsp;i.e.&nbsp;with&nbsp;non-alphanumeric<br>
+&nbsp;&nbsp;characters&nbsp;replaced&nbsp;with&nbsp;underscores.&nbsp;This&nbsp;is&nbsp;only&nbsp;safe&nbsp;to&nbsp;access<br>
+&nbsp;&nbsp;if&nbsp;'spec.enum_tokenizable'&nbsp;returns&nbsp;True.<br>
+&nbsp;<br>
+enum_index:<br>
+&nbsp;&nbsp;The&nbsp;index&nbsp;of&nbsp;'val'&nbsp;in&nbsp;'spec.enum'&nbsp;(which&nbsp;comes&nbsp;from&nbsp;the&nbsp;'enum:'&nbsp;list<br>
+&nbsp;&nbsp;in&nbsp;the&nbsp;binding),&nbsp;or&nbsp;None&nbsp;if&nbsp;spec.enum&nbsp;is&nbsp;None.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Property-__eq__"><strong>__eq__</strong></a>(self, other)</dt><dd><tt>Return&nbsp;self==value.</tt></dd></dl>
+
+<dl><dt><a name="Property-__init__"><strong>__init__</strong></a>(self, spec: edtlib.PropertySpec, val: Union[int, str, List[int], List[str], ForwardRef('Node'), List[ForwardRef('Node')], List[Optional[ForwardRef('ControllerAndData')]], bytes, NoneType], node: 'Node') -&gt; None</dt><dd><tt>Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(<a href="#Property-type">type</a>(self))&nbsp;for&nbsp;accurate&nbsp;signature.</tt></dd></dl>
+
+<dl><dt><a name="Property-__repr__"><strong>__repr__</strong></a>(self)</dt><dd><tt>Return&nbsp;repr(self).</tt></dd></dl>
+
+<hr>
+Readonly properties defined here:<br>
+<dl><dt><strong>description</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>enum_index</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>name</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>type</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>val_as_token</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>__annotations__</strong> = {'node': 'Node', 'spec': &lt;class 'edtlib.PropertySpec'&gt;, 'val': typing.Union[int, str, typing.List[int], typing....rwardRef('ControllerAndData')]], bytes, NoneType]}</dl>
+
+<dl><dt><strong>__dataclass_fields__</strong> = {'node': Field(name='node',type='Node',default=&lt;dataclass...appingproxy({}),kw_only=False,_field_type=_FIELD), 'spec': Field(name='spec',type=&lt;class 'edtlib.PropertySp...appingproxy({}),kw_only=False,_field_type=_FIELD), 'val': Field(name='val',type=typing.Union[int, str, typ...appingproxy({}),kw_only=False,_field_type=_FIELD)}</dl>
+
+<dl><dt><strong>__dataclass_params__</strong> = _DataclassParams(init=True,repr=True,eq=True,order=False,unsafe_hash=False,frozen=False)</dl>
+
+<dl><dt><strong>__hash__</strong> = None</dl>
+
+<dl><dt><strong>__match_args__</strong> = ('spec', 'val', 'node')</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="PropertySpec">class <strong>PropertySpec</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#PropertySpec">PropertySpec</a>(name:&nbsp;str,&nbsp;binding:&nbsp;edtlib.<a href="#Binding">Binding</a>)<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;"property&nbsp;specification",&nbsp;i.e.&nbsp;the&nbsp;description&nbsp;of&nbsp;a<br>
+property&nbsp;provided&nbsp;by&nbsp;a&nbsp;binding&nbsp;file,&nbsp;like&nbsp;its&nbsp;type&nbsp;and&nbsp;description.<br>
+&nbsp;<br>
+These&nbsp;attributes&nbsp;are&nbsp;available&nbsp;on&nbsp;<a href="#PropertySpec">PropertySpec</a>&nbsp;objects:<br>
+&nbsp;<br>
+binding:<br>
+&nbsp;&nbsp;The&nbsp;<a href="#Binding">Binding</a>&nbsp;<a href="builtins.html#object">object</a>&nbsp;which&nbsp;defined&nbsp;this&nbsp;property.<br>
+&nbsp;<br>
+name:<br>
+&nbsp;&nbsp;The&nbsp;property's&nbsp;name.<br>
+&nbsp;<br>
+path:<br>
+&nbsp;&nbsp;The&nbsp;file&nbsp;where&nbsp;this&nbsp;property&nbsp;was&nbsp;defined.&nbsp;In&nbsp;case&nbsp;a&nbsp;binding&nbsp;includes<br>
+&nbsp;&nbsp;other&nbsp;bindings,&nbsp;this&nbsp;is&nbsp;the&nbsp;file&nbsp;where&nbsp;the&nbsp;property&nbsp;was&nbsp;last&nbsp;modified.<br>
+&nbsp;<br>
+type:<br>
+&nbsp;&nbsp;The&nbsp;type&nbsp;of&nbsp;the&nbsp;property&nbsp;as&nbsp;a&nbsp;string,&nbsp;as&nbsp;given&nbsp;in&nbsp;the&nbsp;binding.<br>
+&nbsp;<br>
+description:<br>
+&nbsp;&nbsp;The&nbsp;free-form&nbsp;description&nbsp;of&nbsp;the&nbsp;property&nbsp;as&nbsp;a&nbsp;string,&nbsp;or&nbsp;None.<br>
+&nbsp;<br>
+enum:<br>
+&nbsp;&nbsp;A&nbsp;list&nbsp;of&nbsp;values&nbsp;the&nbsp;property&nbsp;may&nbsp;take&nbsp;as&nbsp;given&nbsp;in&nbsp;the&nbsp;binding,&nbsp;or&nbsp;None.<br>
+&nbsp;<br>
+enum_tokenizable:<br>
+&nbsp;&nbsp;True&nbsp;if&nbsp;enum&nbsp;is&nbsp;not&nbsp;None&nbsp;and&nbsp;all&nbsp;the&nbsp;values&nbsp;in&nbsp;it&nbsp;are&nbsp;tokenizable;<br>
+&nbsp;&nbsp;False&nbsp;otherwise.<br>
+&nbsp;<br>
+&nbsp;&nbsp;A&nbsp;property&nbsp;must&nbsp;have&nbsp;string&nbsp;type&nbsp;and&nbsp;an&nbsp;"enum:"&nbsp;in&nbsp;its&nbsp;binding&nbsp;to&nbsp;be<br>
+&nbsp;&nbsp;tokenizable.&nbsp;Additionally,&nbsp;the&nbsp;"enum:"&nbsp;values&nbsp;must&nbsp;be&nbsp;unique&nbsp;after<br>
+&nbsp;&nbsp;converting&nbsp;all&nbsp;non-alphanumeric&nbsp;characters&nbsp;to&nbsp;underscores&nbsp;(so&nbsp;"foo&nbsp;bar"<br>
+&nbsp;&nbsp;and&nbsp;"foo_bar"&nbsp;in&nbsp;the&nbsp;same&nbsp;"enum:"&nbsp;would&nbsp;not&nbsp;be&nbsp;tokenizable).<br>
+&nbsp;<br>
+enum_upper_tokenizable:<br>
+&nbsp;&nbsp;Like&nbsp;'enum_tokenizable',&nbsp;with&nbsp;the&nbsp;additional&nbsp;restriction&nbsp;that&nbsp;the<br>
+&nbsp;&nbsp;"enum:"&nbsp;values&nbsp;must&nbsp;be&nbsp;unique&nbsp;after&nbsp;uppercasing&nbsp;and&nbsp;converting<br>
+&nbsp;&nbsp;non-alphanumeric&nbsp;characters&nbsp;to&nbsp;underscores.<br>
+&nbsp;<br>
+const:<br>
+&nbsp;&nbsp;The&nbsp;property's&nbsp;constant&nbsp;value&nbsp;as&nbsp;given&nbsp;in&nbsp;the&nbsp;binding,&nbsp;or&nbsp;None.<br>
+&nbsp;<br>
+default:<br>
+&nbsp;&nbsp;The&nbsp;property's&nbsp;default&nbsp;value&nbsp;as&nbsp;given&nbsp;in&nbsp;the&nbsp;binding,&nbsp;or&nbsp;None.<br>
+&nbsp;<br>
+deprecated:<br>
+&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;property&nbsp;is&nbsp;deprecated;&nbsp;False&nbsp;otherwise.<br>
+&nbsp;<br>
+required:<br>
+&nbsp;&nbsp;True&nbsp;if&nbsp;the&nbsp;property&nbsp;is&nbsp;marked&nbsp;required;&nbsp;False&nbsp;otherwise.<br>
+&nbsp;<br>
+specifier_space:<br>
+&nbsp;&nbsp;The&nbsp;specifier&nbsp;space&nbsp;for&nbsp;the&nbsp;property&nbsp;as&nbsp;given&nbsp;in&nbsp;the&nbsp;binding,&nbsp;or&nbsp;None.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="PropertySpec-__init__"><strong>__init__</strong></a>(self, name: str, binding: edtlib.Binding)</dt><dd><tt>Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(<a href="#PropertySpec-type">type</a>(self))&nbsp;for&nbsp;accurate&nbsp;signature.</tt></dd></dl>
+
+<dl><dt><a name="PropertySpec-__repr__"><strong>__repr__</strong></a>(self) -&gt; str</dt><dd><tt>Return&nbsp;repr(self).</tt></dd></dl>
+
+<hr>
+Readonly properties defined here:<br>
+<dl><dt><strong>const</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>default</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>deprecated</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>description</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>enum</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>enum_tokenizable</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>enum_upper_tokenizable</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>path</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>required</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>specifier_space</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<dl><dt><strong>type</strong></dt>
+<dd><tt>See&nbsp;the&nbsp;class&nbsp;docstring</tt></dd>
+</dl>
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Range">class <strong>Range</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Range">Range</a>(node:&nbsp;'<a href="#Node">Node</a>',&nbsp;child_bus_cells:&nbsp;int,&nbsp;child_bus_addr:&nbsp;Optional[int],&nbsp;parent_bus_cells:&nbsp;int,&nbsp;parent_bus_addr:&nbsp;Optional[int],&nbsp;length_cells:&nbsp;int,&nbsp;length:&nbsp;Optional[int])&nbsp;-&amp;gt;&nbsp;None<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;translation&nbsp;range&nbsp;on&nbsp;a&nbsp;node&nbsp;as&nbsp;described&nbsp;by&nbsp;the&nbsp;'ranges'&nbsp;property.<br>
+&nbsp;<br>
+These&nbsp;attributes&nbsp;are&nbsp;available&nbsp;on&nbsp;<a href="#Range">Range</a>&nbsp;objects:<br>
+&nbsp;<br>
+node:<br>
+&nbsp;&nbsp;The&nbsp;<a href="#Node">Node</a>&nbsp;instance&nbsp;this&nbsp;range&nbsp;is&nbsp;from<br>
+&nbsp;<br>
+child_bus_cells:<br>
+&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;cells&nbsp;used&nbsp;to&nbsp;describe&nbsp;a&nbsp;child&nbsp;bus&nbsp;address.<br>
+&nbsp;<br>
+child_bus_addr:<br>
+&nbsp;&nbsp;A&nbsp;physical&nbsp;address&nbsp;within&nbsp;the&nbsp;child&nbsp;bus&nbsp;address&nbsp;space,&nbsp;or&nbsp;None&nbsp;if&nbsp;the<br>
+&nbsp;&nbsp;child's&nbsp;#address-cells&nbsp;equals&nbsp;0.<br>
+&nbsp;<br>
+parent_bus_cells:<br>
+&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;cells&nbsp;used&nbsp;to&nbsp;describe&nbsp;a&nbsp;parent&nbsp;bus&nbsp;address.<br>
+&nbsp;<br>
+parent_bus_addr:<br>
+&nbsp;&nbsp;A&nbsp;physical&nbsp;address&nbsp;within&nbsp;the&nbsp;parent&nbsp;bus&nbsp;address&nbsp;space,&nbsp;or&nbsp;None&nbsp;if&nbsp;the<br>
+&nbsp;&nbsp;parent's&nbsp;#address-cells&nbsp;equals&nbsp;0.<br>
+&nbsp;<br>
+length_cells:<br>
+&nbsp;&nbsp;The&nbsp;number&nbsp;of&nbsp;cells&nbsp;used&nbsp;to&nbsp;describe&nbsp;the&nbsp;size&nbsp;of&nbsp;range&nbsp;in<br>
+&nbsp;&nbsp;the&nbsp;child's&nbsp;address&nbsp;space.<br>
+&nbsp;<br>
+length:<br>
+&nbsp;&nbsp;The&nbsp;size&nbsp;of&nbsp;the&nbsp;range&nbsp;in&nbsp;the&nbsp;child&nbsp;address&nbsp;space,&nbsp;or&nbsp;None&nbsp;if&nbsp;the<br>
+&nbsp;&nbsp;child's&nbsp;#size-cells&nbsp;equals&nbsp;0.<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Range-__eq__"><strong>__eq__</strong></a>(self, other)</dt><dd><tt>Return&nbsp;self==value.</tt></dd></dl>
+
+<dl><dt><a name="Range-__init__"><strong>__init__</strong></a>(self, node: 'Node', child_bus_cells: int, child_bus_addr: Optional[int], parent_bus_cells: int, parent_bus_addr: Optional[int], length_cells: int, length: Optional[int]) -&gt; None</dt><dd><tt>Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</tt></dd></dl>
+
+<dl><dt><a name="Range-__repr__"><strong>__repr__</strong></a>(self)</dt><dd><tt>Return&nbsp;repr(self).</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>__annotations__</strong> = {'child_bus_addr': typing.Optional[int], 'child_bus_cells': &lt;class 'int'&gt;, 'length': typing.Optional[int], 'length_cells': &lt;class 'int'&gt;, 'node': 'Node', 'parent_bus_addr': typing.Optional[int], 'parent_bus_cells': &lt;class 'int'&gt;}</dl>
+
+<dl><dt><strong>__dataclass_fields__</strong> = {'child_bus_addr': Field(name='child_bus_addr',type=typing.Optional...appingproxy({}),kw_only=False,_field_type=_FIELD), 'child_bus_cells': Field(name='child_bus_cells',type=&lt;class 'int'&gt;,...appingproxy({}),kw_only=False,_field_type=_FIELD), 'length': Field(name='length',type=typing.Optional[int],de...appingproxy({}),kw_only=False,_field_type=_FIELD), 'length_cells': Field(name='length_cells',type=&lt;class 'int'&gt;,def...appingproxy({}),kw_only=False,_field_type=_FIELD), 'node': Field(name='node',type='Node',default=&lt;dataclass...appingproxy({}),kw_only=False,_field_type=_FIELD), 'parent_bus_addr': Field(name='parent_bus_addr',type=typing.Optiona...appingproxy({}),kw_only=False,_field_type=_FIELD), 'parent_bus_cells': Field(name='parent_bus_cells',type=&lt;class 'int'&gt;...appingproxy({}),kw_only=False,_field_type=_FIELD)}</dl>
+
+<dl><dt><strong>__dataclass_params__</strong> = _DataclassParams(init=True,repr=True,eq=True,order=False,unsafe_hash=False,frozen=False)</dl>
+
+<dl><dt><strong>__hash__</strong> = None</dl>
+
+<dl><dt><strong>__match_args__</strong> = ('node', 'child_bus_cells', 'child_bus_addr', 'parent_bus_cells', 'parent_bus_addr', 'length_cells', 'length')</dl>
+
+</td></tr></table> <p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#ffc8d8">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#000000" face="helvetica, arial"><a name="Register">class <strong>Register</strong></a>(<a href="builtins.html#object">builtins.object</a>)</font></td></tr>
+    
+<tr bgcolor="#ffc8d8"><td rowspan=2><tt>&nbsp;&nbsp;&nbsp;</tt></td>
+<td colspan=2><tt><a href="#Register">Register</a>(node:&nbsp;'<a href="#Node">Node</a>',&nbsp;name:&nbsp;Optional[str],&nbsp;addr:&nbsp;Optional[int],&nbsp;size:&nbsp;Optional[int])&nbsp;-&amp;gt;&nbsp;None<br>
+&nbsp;<br>
+Represents&nbsp;a&nbsp;register&nbsp;on&nbsp;a&nbsp;node.<br>
+&nbsp;<br>
+These&nbsp;attributes&nbsp;are&nbsp;available&nbsp;on&nbsp;<a href="#Register">Register</a>&nbsp;objects:<br>
+&nbsp;<br>
+node:<br>
+&nbsp;&nbsp;The&nbsp;<a href="#Node">Node</a>&nbsp;instance&nbsp;this&nbsp;register&nbsp;is&nbsp;from<br>
+&nbsp;<br>
+name:<br>
+&nbsp;&nbsp;The&nbsp;name&nbsp;of&nbsp;the&nbsp;register&nbsp;as&nbsp;given&nbsp;in&nbsp;the&nbsp;'reg-names'&nbsp;property,&nbsp;or&nbsp;None&nbsp;if<br>
+&nbsp;&nbsp;there&nbsp;is&nbsp;no&nbsp;'reg-names'&nbsp;property<br>
+&nbsp;<br>
+addr:<br>
+&nbsp;&nbsp;The&nbsp;starting&nbsp;address&nbsp;of&nbsp;the&nbsp;register,&nbsp;in&nbsp;the&nbsp;parent&nbsp;address&nbsp;space,&nbsp;or&nbsp;None<br>
+&nbsp;&nbsp;if&nbsp;#address-cells&nbsp;is&nbsp;zero.&nbsp;Any&nbsp;'ranges'&nbsp;properties&nbsp;are&nbsp;taken&nbsp;into&nbsp;account.<br>
+&nbsp;<br>
+size:<br>
+&nbsp;&nbsp;The&nbsp;length&nbsp;of&nbsp;the&nbsp;register&nbsp;in&nbsp;bytes<br>&nbsp;</tt></td></tr>
+<tr><td>&nbsp;</td>
+<td width="100%">Methods defined here:<br>
+<dl><dt><a name="Register-__eq__"><strong>__eq__</strong></a>(self, other)</dt><dd><tt>Return&nbsp;self==value.</tt></dd></dl>
+
+<dl><dt><a name="Register-__init__"><strong>__init__</strong></a>(self, node: 'Node', name: Optional[str], addr: Optional[int], size: Optional[int]) -&gt; None</dt><dd><tt>Initialize&nbsp;self.&nbsp;&nbsp;See&nbsp;help(type(self))&nbsp;for&nbsp;accurate&nbsp;signature.</tt></dd></dl>
+
+<dl><dt><a name="Register-__repr__"><strong>__repr__</strong></a>(self)</dt><dd><tt>Return&nbsp;repr(self).</tt></dd></dl>
+
+<hr>
+Data descriptors defined here:<br>
+<dl><dt><strong>__dict__</strong></dt>
+<dd><tt>dictionary&nbsp;for&nbsp;instance&nbsp;variables&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<dl><dt><strong>__weakref__</strong></dt>
+<dd><tt>list&nbsp;of&nbsp;weak&nbsp;references&nbsp;to&nbsp;the&nbsp;object&nbsp;(if&nbsp;defined)</tt></dd>
+</dl>
+<hr>
+Data and other attributes defined here:<br>
+<dl><dt><strong>__annotations__</strong> = {'addr': typing.Optional[int], 'name': typing.Optional[str], 'node': 'Node', 'size': typing.Optional[int]}</dl>
+
+<dl><dt><strong>__dataclass_fields__</strong> = {'addr': Field(name='addr',type=typing.Optional[int],defa...appingproxy({}),kw_only=False,_field_type=_FIELD), 'name': Field(name='name',type=typing.Optional[str],defa...appingproxy({}),kw_only=False,_field_type=_FIELD), 'node': Field(name='node',type='Node',default=&lt;dataclass...appingproxy({}),kw_only=False,_field_type=_FIELD), 'size': Field(name='size',type=typing.Optional[int],defa...appingproxy({}),kw_only=False,_field_type=_FIELD)}</dl>
+
+<dl><dt><strong>__dataclass_params__</strong> = _DataclassParams(init=True,repr=True,eq=True,order=False,unsafe_hash=False,frozen=False)</dl>
+
+<dl><dt><strong>__hash__</strong> = None</dl>
+
+<dl><dt><strong>__match_args__</strong> = ('node', 'name', 'addr', 'size')</dl>
+
+</td></tr></table></td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#eeaa77">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Functions</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#eeaa77"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><dl><dt><a name="-bindings_from_paths"><strong>bindings_from_paths</strong></a>(yaml_paths: List[str], ignore_errors: bool = False) -&gt; List[edtlib.Binding]</dt><dd><tt>Get&nbsp;a&nbsp;list&nbsp;of&nbsp;<a href="#Binding">Binding</a>&nbsp;objects&nbsp;from&nbsp;the&nbsp;yaml&nbsp;files&nbsp;'yaml_paths'.<br>
+&nbsp;<br>
+If&nbsp;'ignore_errors'&nbsp;is&nbsp;True,&nbsp;YAML&nbsp;files&nbsp;that&nbsp;cause&nbsp;an&nbsp;<a href="#EDTError">EDTError</a>&nbsp;when<br>
+loaded&nbsp;are&nbsp;ignored.&nbsp;(No&nbsp;other&nbsp;exception&nbsp;types&nbsp;are&nbsp;silenced.)</tt></dd></dl>
+ <dl><dt><a name="-load_vendor_prefixes_txt"><strong>load_vendor_prefixes_txt</strong></a>(vendor_prefixes: str) -&gt; Dict[str, str]</dt><dd><tt>Load&nbsp;a&nbsp;vendor-prefixes.txt&nbsp;file&nbsp;and&nbsp;return&nbsp;a&nbsp;dict<br>
+representation&nbsp;mapping&nbsp;a&nbsp;vendor&nbsp;prefix&nbsp;to&nbsp;the&nbsp;vendor&nbsp;name.</tt></dd></dl>
+ <dl><dt><a name="-str_as_token"><strong>str_as_token</strong></a>(val: str) -&gt; str</dt><dd><tt>Return&nbsp;a&nbsp;canonical&nbsp;representation&nbsp;of&nbsp;a&nbsp;string&nbsp;as&nbsp;a&nbsp;C&nbsp;token.<br>
+&nbsp;<br>
+This&nbsp;converts&nbsp;special&nbsp;characters&nbsp;in&nbsp;'val'&nbsp;to&nbsp;underscores,&nbsp;and<br>
+returns&nbsp;the&nbsp;result.</tt></dd></dl>
+</td></tr></table><p>
+<table width="100%" cellspacing=0 cellpadding=2 border=0 summary="section">
+<tr bgcolor="#55aa55">
+<td colspan=3 valign=bottom>&nbsp;<br>
+<font color="#ffffff" face="helvetica, arial"><big><strong>Data</strong></big></font></td></tr>
+    
+<tr><td bgcolor="#55aa55"><tt>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</tt></td><td>&nbsp;</td>
+<td width="100%"><strong>Any</strong> = typing.Any<br>
+<strong>Callable</strong> = typing.Callable<br>
+<strong>Dict</strong> = typing.Dict<br>
+<strong>Iterable</strong> = typing.Iterable<br>
+<strong>List</strong> = typing.List<br>
+<strong>NoReturn</strong> = typing.NoReturn<br>
+<strong>Optional</strong> = typing.Optional<br>
+<strong>PropertyValType</strong> = typing.Union[int, str, typing.List[int], typing....rwardRef('ControllerAndData')]], bytes, NoneType]<br>
+<strong>Set</strong> = typing.Set<br>
+<strong>TYPE_CHECKING</strong> = False<br>
+<strong>Tuple</strong> = typing.Tuple<br>
+<strong>Union</strong> = typing.Union<br>
+<strong>__annotations__</strong> = {'_DEFAULT_PROP_BINDING': &lt;class 'edtlib.Binding'&gt;, '_DEFAULT_PROP_SPECS': typing.Dict[str, edtlib.PropertySpec], '_DEFAULT_PROP_TYPES': typing.Dict[str, str], '_STATUS_ENUM': typing.List[str]}</td></tr></table>
+</body></html>

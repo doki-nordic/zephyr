@@ -1,0 +1,49 @@
+# Copyright (c) 2020 Linaro Limited.
+# SPDX-License-Identifier: Apache-2.0
+
+name: Documentation Build
+
+on:
+  pull_request:
+
+jobs:
+  api-check:
+    runs-on: ubuntu-latest
+
+    steps:
+    - name: checkout
+      uses: actions/checkout@v4
+      with:
+        ref: ${{ github.event.pull_request.head.sha }}
+        fetch-depth: 0
+
+    - name: install-pkgs
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y ninja-build graphviz lcov
+        wget --no-verbose "https://github.com/doxygen/doxygen/releases/download/Release_${DOXYGEN_VERSION//./_}/doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz"
+        tar xf doxygen-${DOXYGEN_VERSION}.linux.bin.tar.gz
+        echo "${PWD}/doxygen-${DOXYGEN_VERSION}/bin" >> $GITHUB_PATH
+
+    - name: cache-pip
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/pip
+        key: pip-${{ hashFiles('doc/requirements.txt') }}
+
+    - name: install-pip
+      run: |
+        sudo pip3 install -U setuptools wheel pip
+        pip3 install -r doc/requirements.txt
+        pip3 install west==${WEST_VERSION}
+        pip3 install cmake==${CMAKE_VERSION}
+        pip3 install coverxygen
+
+    - name: west setup
+      run: |
+        west init -l .
+
+    - name: build-docs
+      shell: bash
+      run: |
+        cd /home/doki/work/zephyr/zephyr/doc
