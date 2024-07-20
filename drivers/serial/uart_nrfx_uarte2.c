@@ -344,6 +344,7 @@ static void trigger_handler(const struct device *dev)
 
 static void evt_handler(nrfx_uarte_event_t const *event, void *context)
 {
+	*(volatile int32_t*)(0x5F938000 + 0x004) = 1 << 5; // P0.5
 	const struct device *dev = context;
 	struct uarte_nrfx_data *data = dev->data;
 
@@ -375,6 +376,7 @@ static void evt_handler(nrfx_uarte_event_t const *event, void *context)
 	default:
 		__ASSERT_NO_MSG(0);
 	}
+	*(volatile int32_t*)(0x5F938000 + 0x008) = 1 << 5; // P0.5
 }
 
 static int api_tx(const struct device *dev, const uint8_t *buf, size_t len, int32_t timeout)

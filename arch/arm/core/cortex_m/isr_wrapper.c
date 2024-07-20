@@ -32,6 +32,8 @@
  */
 void _isr_wrapper(void)
 {
+	*(volatile int32_t*)(0x5F938000 + 0x004) = 1 << 4; // P0.4 on - start interrupt
+
 #ifdef CONFIG_TRACING_ISR
 	sys_trace_isr_enter();
 #endif /* CONFIG_TRACING_ISR */
@@ -83,6 +85,8 @@ void _isr_wrapper(void)
 #ifdef CONFIG_TRACING_ISR
 	sys_trace_isr_exit();
 #endif /* CONFIG_TRACING_ISR */
+
+	*(volatile int32_t*)(0x5F938000 + 0x008) = 1 << 4; // P0.4 off - end interrupt
 
 	z_arm_exc_exit();
 }

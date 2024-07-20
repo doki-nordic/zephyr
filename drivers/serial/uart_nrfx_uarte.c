@@ -227,6 +227,7 @@ static void endtx_isr(const struct device *dev)
  */
 static void uarte_nrfx_isr_int(const void *arg)
 {
+	*(volatile int32_t*)(0x5F938000 + 0x004) = 1 << 5; // P0.5
 	const struct device *dev = arg;
 	const struct uarte_nrfx_config *config = dev->config;
 	NRF_UARTE_Type *uarte = get_uarte_instance(dev);
@@ -263,6 +264,7 @@ static void uarte_nrfx_isr_int(const void *arg)
 	struct uarte_nrfx_data *data = dev->data;
 
 	if (!data->int_driven) {
+		*(volatile int32_t*)(0x5F938000 + 0x008) = 1 << 5; // P0.5
 		return;
 	}
 
@@ -272,6 +274,7 @@ static void uarte_nrfx_isr_int(const void *arg)
 			nrf_uarte_int_disable(uarte,
 					      NRF_UARTE_INT_TXSTOPPED_MASK);
 			data->int_driven->disable_tx_irq = false;
+			*(volatile int32_t*)(0x5F938000 + 0x008) = 1 << 5; // P0.5
 			return;
 		}
 
@@ -286,6 +289,7 @@ static void uarte_nrfx_isr_int(const void *arg)
 		data->int_driven->cb(dev, data->int_driven->cb_data);
 	}
 #endif /* UARTE_INTERRUPT_DRIVEN */
+	*(volatile int32_t*)(0x5F938000 + 0x008) = 1 << 5; // P0.5
 }
 #endif /* UARTE_ANY_NONE_ASYNC */
 
@@ -1396,6 +1400,7 @@ static void txstopped_isr(const struct device *dev)
 
 static void uarte_nrfx_isr_async(const void *arg)
 {
+	*(volatile int32_t*)(0x5F938000 + 0x004) = 1 << 5; // P0.5
 	const struct device *dev = arg;
 	NRF_UARTE_Type *uarte = get_uarte_instance(dev);
 	struct uarte_nrfx_data *data = dev->data;
@@ -1404,6 +1409,7 @@ static void uarte_nrfx_isr_async(const void *arg)
 	    && nrf_uarte_event_check(uarte, NRF_UARTE_EVENT_RXDRDY)) {
 		nrf_uarte_event_clear(uarte, NRF_UARTE_EVENT_RXDRDY);
 		data->async->rx_cnt.cnt++;
+		*(volatile int32_t*)(0x5F938000 + 0x008) = 1 << 5; // P0.5
 		return;
 	}
 
@@ -1453,6 +1459,7 @@ static void uarte_nrfx_isr_async(const void *arg)
 					  NRF_UARTE_INT_TXSTOPPED_MASK)) {
 		txstopped_isr(dev);
 	}
+	*(volatile int32_t*)(0x5F938000 + 0x008) = 1 << 5; // P0.5
 }
 
 #endif /* UARTE_ANY_ASYNC */

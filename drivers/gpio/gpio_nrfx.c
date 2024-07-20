@@ -369,6 +369,7 @@ static void nrfx_gpio_handler(nrfx_gpiote_pin_t abs_pin,
 			      nrfx_gpiote_trigger_t trigger,
 			      void *context)
 {
+	*(volatile int32_t*)(0x5F938000 + 0x008) = 1 << 5; // P0.5
 	uint32_t pin = abs_pin;
 	uint32_t port_id = nrf_gpio_pin_port_number_extract(&pin);
 	const struct device *port = get_dev(port_id);
@@ -382,6 +383,7 @@ static void nrfx_gpio_handler(nrfx_gpiote_pin_t abs_pin,
 	sys_slist_t *list = &data->callbacks;
 
 	gpio_fire_callbacks(list, port, BIT(pin));
+	*(volatile int32_t*)(0x5F938000 + 0x004) = 1 << 5; // P0.5
 }
 #endif /* CONFIG_GPIO_NRFX_INTERRUPT */
 

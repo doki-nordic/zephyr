@@ -59,6 +59,8 @@ void arch_cpu_idle(void)
 	sys_trace_idle();
 #endif
 
+	*(volatile int32_t*)(0x5F938000 + 0x008) = 1 << 6; // P0.6 off - enter idle
+
 #if CONFIG_ARM_ON_ENTER_CPU_IDLE_PREPARE_HOOK
 	z_arm_on_enter_cpu_idle_prepare();
 #endif
@@ -93,6 +95,8 @@ void arch_cpu_idle(void)
 
 	SLEEP_IF_ALLOWED(__WFI);
 
+	*(volatile int32_t*)(0x5F938000 + 0x004) = 1 << 6; // P0.6 on - exit idle
+
 	__enable_irq();
 	__ISB();
 }
@@ -102,6 +106,8 @@ void arch_cpu_atomic_idle(unsigned int key)
 #if defined(CONFIG_TRACING)
 	sys_trace_idle();
 #endif
+
+	*(volatile int32_t*)(0x5F938000 + 0x008) = 1 << 6; // P0.6 off - enter idle
 
 #if CONFIG_ARM_ON_ENTER_CPU_IDLE_PREPARE_HOOK
 	z_arm_on_enter_cpu_idle_prepare();
@@ -129,6 +135,8 @@ void arch_cpu_atomic_idle(unsigned int key)
 #endif
 
 	SLEEP_IF_ALLOWED(__WFE);
+
+	*(volatile int32_t*)(0x5F938000 + 0x004) = 1 << 6; // P0.6 on - exit idle
 
 	arch_irq_unlock(key);
 #if defined(CONFIG_ARMV7_M_ARMV8_M_MAINLINE)
