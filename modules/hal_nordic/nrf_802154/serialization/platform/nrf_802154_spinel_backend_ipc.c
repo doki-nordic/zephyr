@@ -9,6 +9,11 @@
 #include <zephyr/device.h>
 #include <zephyr/logging/log.h>
 
+#if defined(CONFIG_SOC_NRF5340_CPUAPP)
+#include <nrf53_cpunet_mgmt.h>
+#include <hal/nrf_spu.h>
+#endif
+
 #include "nrf_802154.h"
 #include "nrf_802154_spinel_backend_callouts.h"
 #include "nrf_802154_serialization_error.h"
@@ -55,8 +60,26 @@ nrf_802154_ser_err_t nrf_802154_backend_init(void)
 	int err;
 
 #if defined(CONFIG_SOC_NRF5340_CPUAPP)
+
+#if !defined(CONFIG_TRUSTED_EXECUTION_NONSECURE)
+	/* Retain nRF5340 Network MCU in Secure domain (bus
+	 * accesses by Network MCU will have Secure attribute set).
+	 */
+	nrf_spu_extdomain_set((NRF_SPU_Type *)DT_REG_ADDR(DT_NODELABEL(spu)), 0, true, false);
+#endif /* !defined(CONFIG_TRUSTED_EXECUTION_NONSECURE) */
+
+#if !defined(CONFIG_TRUSTED_EXECUTION_SECURE)
+	/*
+	 * Building Zephyr with CONFIG_TRUSTED_EXECUTION_SECURE=y implies
+	 * building also a Non-Secure image. The Non-Secure image will, in
+	 * this case do the remainder of actions to properly configure and
+	 * boot the Network MCU.
+	 */
+
 	nrf53_cpunet_enable(true);
-#endif
+#endif /* !defined(CONFIG_TRUSTED_EXECUTION_SECURE) */
+
+#endif /* !defined(CONFIG_SOC_NRF5340_CPUAPP) */
 
 	err = ipc_service_open_instance(ipc_instance);
 	if (err < 0 && err != -EALREADY) {
