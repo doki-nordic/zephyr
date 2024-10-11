@@ -1365,11 +1365,11 @@ const static struct ipc_service_backend backend_ops = {
 	};										\
 	BUILD_ASSERT(IS_POWER_OF_TWO(GET_CACHE_ALIGNMENT(i)),				\
 		     "This module supports only power of two cache alignment");		\
-	BUILD_ASSERT((GET_BLOCK_SIZE_INST(i, tx, rx) > GET_CACHE_ALIGNMENT(i)) &&	\
+	BUILD_ASSERT((GET_BLOCK_SIZE_INST(i, tx, rx) >= GET_CACHE_ALIGNMENT(i)) &&	\
 		     (GET_BLOCK_SIZE_INST(i, tx, rx) <					\
 		      GET_MEM_SIZE_INST(i, tx)),					\
 		     "TX region is too small for provided number of blocks");		\
-	BUILD_ASSERT((GET_BLOCK_SIZE_INST(i, rx, tx) > GET_CACHE_ALIGNMENT(i)) &&	\
+	BUILD_ASSERT((GET_BLOCK_SIZE_INST(i, rx, tx) >= GET_CACHE_ALIGNMENT(i)) &&	\
 		     (GET_BLOCK_SIZE_INST(i, rx, tx) <					\
 		      GET_MEM_SIZE_INST(i, rx)),					\
 		     "RX region is too small for provided number of blocks");		\
@@ -1382,6 +1382,21 @@ const static struct ipc_service_backend backend_ops = {
 			      &backend_config_##i,					\
 			      POST_KERNEL,						\
 			      CONFIG_IPC_SERVICE_REG_BACKEND_PRIORITY,			\
-			      &backend_ops);
+			      &backend_ops);\
+	SHOW_VALUE_AS_WARNING(i); \
+	SHOW_VALUE_AS_WARNING(GET_CACHE_ALIGNMENT(i)); \
+	SHOW_VALUE_AS_WARNING(DT_INST_PROP(i, tx_blocks)); \
+	SHOW_VALUE_AS_WARNING(DT_INST_PROP(i, rx_blocks)); \
+	/*SHOW_VALUE_AS_WARNING(GET_MEM_ADDR_INST(i, tx)); \
+	SHOW_VALUE_AS_WARNING(GET_ICMSG_SIZE_INST(i, tx, rx)); \
+	SHOW_VALUE_AS_WARNING(GET_BLOCKS_ADDR_INST(i, tx, rx)); \
+	SHOW_VALUE_AS_WARNING(GET_BLOCK_SIZE_INST(i, tx, rx)); \
+	SHOW_VALUE_AS_WARNING(DT_INST_PROP(i, tx_blocks) * GET_BLOCK_SIZE_INST(i, tx, rx)); */ \
+	SHOW_VALUE_AS_WARNING(GET_MEM_ADDR_INST(i, rx)); \
+	SHOW_VALUE_AS_WARNING(GET_ICMSG_SIZE_INST(i, rx, tx)); \
+	SHOW_VALUE_AS_WARNING(GET_BLOCKS_ADDR_INST(i, rx, tx)); \
+	SHOW_VALUE_AS_WARNING(GET_BLOCK_SIZE_INST(i, rx, tx)); \
+	SHOW_VALUE_AS_WARNING(DT_INST_PROP(i, rx_blocks) * GET_BLOCK_SIZE_INST(i, rx, tx)); \
+
 
 DT_INST_FOREACH_STATUS_OKAY(DEFINE_BACKEND_DEVICE)

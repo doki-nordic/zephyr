@@ -1,0 +1,173 @@
+diff --git a/boards/nordic/nrf54h20dk/nrf54h20dk_nrf54h20-ipc_conf.dtsi b/boards/nordic/nrf54h20dk/nrf54h20dk_nrf54h20-ipc_conf.dtsi
+index 944dd7fb6ab..5a30c2909c0 100644
+--- a/boards/nordic/nrf54h20dk/nrf54h20dk_nrf54h20-ipc_conf.dtsi
++++ b/boards/nordic/nrf54h20dk/nrf54h20dk_nrf54h20-ipc_conf.dtsi
+@@ -22,6 +22,7 @@
+ 
+ 		cpuapp_cpurad_ipc: ipc-2-3 {
+ 			compatible = "zephyr,ipc-icbmsg";
++			dcache-alignment = <32>;
+ 			status = "disabled";
+ 			mboxes = <&cpuapp_bellboard 18>,
+ 				 <&cpurad_bellboard 12>;
+@@ -36,6 +37,7 @@
+ 
+ 		cpuapp_cpuppr_ipc: ipc-2-13 {
+ 			compatible = "zephyr,ipc-icmsg";
++			dcache-alignment = <32>;
+ 			status = "disabled";
+ 			mboxes = <&cpuapp_bellboard 13>,
+ 				 <&cpuppr_vevif 12>;
+diff --git a/boards/nordic/nrf9280pdk/nrf9280pdk_nrf9280-ipc_conf.dtsi b/boards/nordic/nrf9280pdk/nrf9280pdk_nrf9280-ipc_conf.dtsi
+index 944dd7fb6ab..5a30c2909c0 100644
+--- a/boards/nordic/nrf9280pdk/nrf9280pdk_nrf9280-ipc_conf.dtsi
++++ b/boards/nordic/nrf9280pdk/nrf9280pdk_nrf9280-ipc_conf.dtsi
+@@ -22,6 +22,7 @@
+ 
+ 		cpuapp_cpurad_ipc: ipc-2-3 {
+ 			compatible = "zephyr,ipc-icbmsg";
++			dcache-alignment = <32>;
+ 			status = "disabled";
+ 			mboxes = <&cpuapp_bellboard 18>,
+ 				 <&cpurad_bellboard 12>;
+@@ -36,6 +37,7 @@
+ 
+ 		cpuapp_cpuppr_ipc: ipc-2-13 {
+ 			compatible = "zephyr,ipc-icmsg";
++			dcache-alignment = <32>;
+ 			status = "disabled";
+ 			mboxes = <&cpuapp_bellboard 13>,
+ 				 <&cpuppr_vevif 12>;
+diff --git a/doc/services/ipc/ipc_service/backends/ipc_service_icbmsg.rst b/doc/services/ipc/ipc_service/backends/ipc_service_icbmsg.rst
+index 26b9006ae81..49d0e8d1dd2 100644
+--- a/doc/services/ipc/ipc_service/backends/ipc_service_icbmsg.rst
++++ b/doc/services/ipc/ipc_service/backends/ipc_service_icbmsg.rst
+@@ -46,6 +46,8 @@ When configuring the backend, do the following:
+ * Define MBOX devices for sending a signal that informs the other domain (or CPU) of the written data.
+   Ensure that the other domain (or CPU) can receive the signal.
+ 
++TODO: Podpunkt o dcache-alignment i warning, że ustawienie jest bardzo ważne, bo błędna konfiguracja może powodować subtelne błędy, trudne do zauważenia.
++
+ See the following configuration example for one of the instances:
+ 
+ .. code-block:: devicetree
+@@ -63,6 +65,7 @@ See the following configuration example for one of the instances:
+    ipc {
+       ipc0: ipc0 {
+          compatible = "zephyr,ipc-icbmsg";
++         dcache-alignment = <32>;
+          tx-region = <&tx>;
+          rx-region = <&rx>;
+          tx-blocks = <16>;
+diff --git a/dts/bindings/ipc/zephyr,ipc-icmsg.yaml b/dts/bindings/ipc/zephyr,ipc-icmsg.yaml
+index 41793005373..13a9e2b84b6 100644
+--- a/dts/bindings/ipc/zephyr,ipc-icmsg.yaml
++++ b/dts/bindings/ipc/zephyr,ipc-icmsg.yaml
+@@ -32,7 +32,7 @@ properties:
+       For example:
+         Side A: no data cache
+         Side B: 32 Bytes write-back size, 16 Bytes invalidation size
+-        dcache-alignment = 32; for both
++        dcache-alignment = <32>; for both
+ 
+   mboxes:
+     description: phandle to the MBOX controller (TX and RX are required)
+diff --git a/include/zephyr/kernel.h b/include/zephyr/kernel.h
+index 32c554c159d..021e1edfc99 100644
+--- a/include/zephyr/kernel.h
++++ b/include/zephyr/kernel.h
+@@ -6112,4 +6112,29 @@ void k_sys_runtime_stats_disable(void);
+ 
+ #endif /* !_ASMLANGUAGE */
+ 
++#define _SHOW_VALUE_AS_WARNING3(x, l, c) \
++	__attribute__((assume_aligned((x) <= 1 ? (x) : 2, (x) < 1 ? 0 : (x)))) \
++	static inline void* __value_shown_##l##_##c() { return (void*)0; };
++#define _SHOW_VALUE_AS_WARNING2(x, l, c) _SHOW_VALUE_AS_WARNING3(x, l, c)
++
++#define _SHOW_VALUE_AS_WARNING_IF3(condition, x, l, c) \
++	__attribute__((assume_aligned(!(condition) ? 2 : (x) <= 1 ? (x) : 2, \
++	!(condition) ? 0 : (x) < 1 ? 0 : (x)))) \
++	static inline void* __value_shown_##l##_##c() { return (void*)0; };
++#define _SHOW_VALUE_AS_WARNING_IF2(condition, x, l, c) _SHOW_VALUE_AS_WARNING_IF3(condition, x, l, c)
++
++#define _ASSERT_WITH_VALUE3(condition, x, l, c, ...) \
++	__attribute__((assume_aligned((condition) ? 2 : (x) <= 1 ? (x) : 2, \
++	(condition) ? 0 : (x) < 1 ? 0 : (x)))) \
++	static inline void* __value_shown_##l##_##c() { return (void*)0; }; \
++	_Static_assert((condition), ##__VA_ARGS__);
++#define _ASSERT_WITH_VALUE2(condition, x, l, c, ...) _ASSERT_WITH_VALUE3(condition, x, l, c, ##__VA_ARGS__)
++
++#define SHOW_VALUE_AS_WARNING(x) \
++	_SHOW_VALUE_AS_WARNING2((signed long long)(x), __LINE__, __COUNTER__)
++#define SHOW_VALUE_AS_WARNING_IF(condition, x) \
++	_SHOW_VALUE_AS_WARNING_IF2(condition, (signed long long)(x), __LINE__, __COUNTER__)
++#define ASSERT_WITH_VALUE(condition, x, ...) \
++	_ASSERT_WITH_VALUE2(condition, (signed long long)(x), __LINE__, __COUNTER__, ##__VA_ARGS__)
++
+ #endif /* ZEPHYR_INCLUDE_KERNEL_H_ */
+diff --git a/samples/subsys/ipc/ipc_service/icmsg/boards/nrf54l15pdk_nrf54l15_cpuapp.overlay b/samples/subsys/ipc/ipc_service/icmsg/boards/nrf54l15pdk_nrf54l15_cpuapp.overlay
+index 0cfaf565349..e66e4c9e6b6 100644
+--- a/samples/subsys/ipc/ipc_service/icmsg/boards/nrf54l15pdk_nrf54l15_cpuapp.overlay
++++ b/samples/subsys/ipc/ipc_service/icmsg/boards/nrf54l15pdk_nrf54l15_cpuapp.overlay
+@@ -23,6 +23,7 @@
+ 	ipc {
+ 		ipc0: ipc0 {
+ 			compatible = "zephyr,ipc-icmsg";
++			dcache-alignment = <32>;
+ 			tx-region = <&sram_tx>;
+ 			rx-region = <&sram_rx>;
+ 			mboxes = <&cpuapp_vevif_rx 15>, <&cpuapp_vevif_tx 16>;
+diff --git a/samples/subsys/ipc/ipc_service/icmsg/remote/boards/nrf54l15pdk_nrf54l15_cpuflpr.overlay b/samples/subsys/ipc/ipc_service/icmsg/remote/boards/nrf54l15pdk_nrf54l15_cpuflpr.overlay
+index b0e1f0d5034..490cbb35c3e 100644
+--- a/samples/subsys/ipc/ipc_service/icmsg/remote/boards/nrf54l15pdk_nrf54l15_cpuflpr.overlay
++++ b/samples/subsys/ipc/ipc_service/icmsg/remote/boards/nrf54l15pdk_nrf54l15_cpuflpr.overlay
+@@ -23,6 +23,7 @@
+ 	ipc {
+ 		ipc0: ipc0 {
+ 			compatible = "zephyr,ipc-icmsg";
++			dcache-alignment = <32>;
+ 			tx-region = <&sram_tx>;
+ 			rx-region = <&sram_rx>;
+ 			mboxes = <&cpuflpr_vevif_rx 16>, <&cpuflpr_vevif_tx 15>;
+diff --git a/subsys/ipc/ipc_service/backends/ipc_icbmsg.c b/subsys/ipc/ipc_service/backends/ipc_icbmsg.c
+index 4f3830b4633..d747831a87c 100644
+--- a/subsys/ipc/ipc_service/backends/ipc_icbmsg.c
++++ b/subsys/ipc/ipc_service/backends/ipc_icbmsg.c
+@@ -1365,11 +1365,11 @@ const static struct ipc_service_backend backend_ops = {
+ 	};										\
+ 	BUILD_ASSERT(IS_POWER_OF_TWO(GET_CACHE_ALIGNMENT(i)),				\
+ 		     "This module supports only power of two cache alignment");		\
+-	BUILD_ASSERT((GET_BLOCK_SIZE_INST(i, tx, rx) > GET_CACHE_ALIGNMENT(i)) &&	\
++	BUILD_ASSERT((GET_BLOCK_SIZE_INST(i, tx, rx) >= GET_CACHE_ALIGNMENT(i)) &&	\
+ 		     (GET_BLOCK_SIZE_INST(i, tx, rx) <					\
+ 		      GET_MEM_SIZE_INST(i, tx)),					\
+ 		     "TX region is too small for provided number of blocks");		\
+-	BUILD_ASSERT((GET_BLOCK_SIZE_INST(i, rx, tx) > GET_CACHE_ALIGNMENT(i)) &&	\
++	BUILD_ASSERT((GET_BLOCK_SIZE_INST(i, rx, tx) >= GET_CACHE_ALIGNMENT(i)) &&	\
+ 		     (GET_BLOCK_SIZE_INST(i, rx, tx) <					\
+ 		      GET_MEM_SIZE_INST(i, rx)),					\
+ 		     "RX region is too small for provided number of blocks");		\
+@@ -1382,6 +1382,21 @@ const static struct ipc_service_backend backend_ops = {
+ 			      &backend_config_##i,					\
+ 			      POST_KERNEL,						\
+ 			      CONFIG_IPC_SERVICE_REG_BACKEND_PRIORITY,			\
+-			      &backend_ops);
++			      &backend_ops);\
++	SHOW_VALUE_AS_WARNING(i); \
++	SHOW_VALUE_AS_WARNING(GET_CACHE_ALIGNMENT(i)); \
++	SHOW_VALUE_AS_WARNING(DT_INST_PROP(i, tx_blocks)); \
++	SHOW_VALUE_AS_WARNING(DT_INST_PROP(i, rx_blocks)); \
++	/*SHOW_VALUE_AS_WARNING(GET_MEM_ADDR_INST(i, tx)); \
++	SHOW_VALUE_AS_WARNING(GET_ICMSG_SIZE_INST(i, tx, rx)); \
++	SHOW_VALUE_AS_WARNING(GET_BLOCKS_ADDR_INST(i, tx, rx)); \
++	SHOW_VALUE_AS_WARNING(GET_BLOCK_SIZE_INST(i, tx, rx)); \
++	SHOW_VALUE_AS_WARNING(DT_INST_PROP(i, tx_blocks) * GET_BLOCK_SIZE_INST(i, tx, rx)); */ \
++	SHOW_VALUE_AS_WARNING(GET_MEM_ADDR_INST(i, rx)); \
++	SHOW_VALUE_AS_WARNING(GET_ICMSG_SIZE_INST(i, rx, tx)); \
++	SHOW_VALUE_AS_WARNING(GET_BLOCKS_ADDR_INST(i, rx, tx)); \
++	SHOW_VALUE_AS_WARNING(GET_BLOCK_SIZE_INST(i, rx, tx)); \
++	SHOW_VALUE_AS_WARNING(DT_INST_PROP(i, rx_blocks) * GET_BLOCK_SIZE_INST(i, rx, tx)); \
++
+ 
+ DT_INST_FOREACH_STATUS_OKAY(DEFINE_BACKEND_DEVICE)

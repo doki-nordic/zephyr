@@ -46,6 +46,8 @@ When configuring the backend, do the following:
 * Define MBOX devices for sending a signal that informs the other domain (or CPU) of the written data.
   Ensure that the other domain (or CPU) can receive the signal.
 
+TODO: Podpunkt o dcache-alignment i warning, że ustawienie jest bardzo ważne, bo błędna konfiguracja może powodować subtelne błędy, trudne do zauważenia.
+
 See the following configuration example for one of the instances:
 
 .. code-block:: devicetree
@@ -63,6 +65,7 @@ See the following configuration example for one of the instances:
    ipc {
       ipc0: ipc0 {
          compatible = "zephyr,ipc-icbmsg";
+         dcache-alignment = <32>;
          tx-region = <&tx>;
          rx-region = <&rx>;
          tx-blocks = <16>;

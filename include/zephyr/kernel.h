@@ -6112,4 +6112,29 @@ void k_sys_runtime_stats_disable(void);
 
 #endif /* !_ASMLANGUAGE */
 
+#define _SHOW_VALUE_AS_WARNING3(x, l, c) \
+	__attribute__((assume_aligned((x) <= 1 ? (x) : 2, (x) < 1 ? 0 : (x)))) \
+	static inline void* __value_shown_##l##_##c() { return (void*)0; };
+#define _SHOW_VALUE_AS_WARNING2(x, l, c) _SHOW_VALUE_AS_WARNING3(x, l, c)
+
+#define _SHOW_VALUE_AS_WARNING_IF3(condition, x, l, c) \
+	__attribute__((assume_aligned(!(condition) ? 2 : (x) <= 1 ? (x) : 2, \
+	!(condition) ? 0 : (x) < 1 ? 0 : (x)))) \
+	static inline void* __value_shown_##l##_##c() { return (void*)0; };
+#define _SHOW_VALUE_AS_WARNING_IF2(condition, x, l, c) _SHOW_VALUE_AS_WARNING_IF3(condition, x, l, c)
+
+#define _ASSERT_WITH_VALUE3(condition, x, l, c, ...) \
+	__attribute__((assume_aligned((condition) ? 2 : (x) <= 1 ? (x) : 2, \
+	(condition) ? 0 : (x) < 1 ? 0 : (x)))) \
+	static inline void* __value_shown_##l##_##c() { return (void*)0; }; \
+	_Static_assert((condition), ##__VA_ARGS__);
+#define _ASSERT_WITH_VALUE2(condition, x, l, c, ...) _ASSERT_WITH_VALUE3(condition, x, l, c, ##__VA_ARGS__)
+
+#define SHOW_VALUE_AS_WARNING(x) \
+	_SHOW_VALUE_AS_WARNING2((signed long long)(x), __LINE__, __COUNTER__)
+#define SHOW_VALUE_AS_WARNING_IF(condition, x) \
+	_SHOW_VALUE_AS_WARNING_IF2(condition, (signed long long)(x), __LINE__, __COUNTER__)
+#define ASSERT_WITH_VALUE(condition, x, ...) \
+	_ASSERT_WITH_VALUE2(condition, (signed long long)(x), __LINE__, __COUNTER__, ##__VA_ARGS__)
+
 #endif /* ZEPHYR_INCLUDE_KERNEL_H_ */
