@@ -14,6 +14,8 @@
 
 #define DT_DRV_COMPAT	zephyr_ipc_icmsg
 
+#warning ICMsg
+
 static int register_ept(const struct device *instance, void **token,
 			const struct ipc_ept_cfg *cfg)
 {

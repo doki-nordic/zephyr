@@ -94,8 +94,9 @@
 #define MAYBE_CONST const
 #endif
 
-LOG_MODULE_REGISTER(ipc_icbmsg,
-		    CONFIG_IPC_SERVICE_BACKEND_ICBMSG_LOG_LEVEL);
+#warning ICBMsg
+
+LOG_MODULE_REGISTER(ipc_icbmsg, 4);
 
 #define DT_DRV_COMPAT zephyr_ipc_icbmsg
 
@@ -1029,6 +1030,20 @@ static int open(const struct device *instance)
 
 	LOG_DBG("Open instance 0x%08X, initiator=%d", (uint32_t)instance,
 		dev_data->is_initiator ? 1 : 0);
+	LOG_DBG("  ICMsg TX from 0x%08X to 0x%08X, rd idx at 0x%08X, wr idx at 0x%08X, align %d",
+		(int)dev_data->control_data.tx_pb->cfg->data_loc,
+		((int)dev_data->control_data.tx_pb->cfg->data_loc +
+		 (int)dev_data->control_data.tx_pb->cfg->len),
+		(int)dev_data->control_data.tx_pb->cfg->rd_idx_loc,
+		(int)dev_data->control_data.tx_pb->cfg->wr_idx_loc,
+		(int)dev_data->control_data.tx_pb->cfg->dcache_alignment);
+	LOG_DBG("  ICMsg RX from 0x%08X to 0x%08X, rd idx at 0x%08X, wr idx at 0x%08X, align %d",
+		(int)dev_data->control_data.rx_pb->cfg->data_loc,
+		((int)dev_data->control_data.rx_pb->cfg->data_loc +
+		 (int)dev_data->control_data.rx_pb->cfg->len),
+		(int)dev_data->control_data.rx_pb->cfg->rd_idx_loc,
+		(int)dev_data->control_data.rx_pb->cfg->wr_idx_loc,
+		(int)dev_data->control_data.rx_pb->cfg->dcache_alignment);
 	LOG_DBG("  TX %d blocks of %d bytes at 0x%08X, max allocable %d bytes",
 		(uint32_t)conf->tx.block_count,
 		(uint32_t)conf->tx.block_size,

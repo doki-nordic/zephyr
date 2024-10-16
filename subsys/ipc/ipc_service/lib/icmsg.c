@@ -187,13 +187,39 @@ static void mbox_callback_process(struct icmsg_data_t *dev_data)
 		return;
 	}
 
+	static int c = 0;
+	static int c2 = 0;
+
+	if (c > 48 && IS_ENABLED(CONFIG_LOG_MODE_IMMEDIATE)) {
+		int wr = *(dev_data->rx_pb->cfg->wr_idx_loc);
+		int rd = dev_data->rx_pb->data.rd_idx;
+		printk(">\r w=0x%08X, r=0x%08X\n", wr, *(dev_data->rx_pb->cfg->rd_idx_loc));
+		for (int i = 0; i < dev_data->rx_pb->cfg->len; i++) {
+			if (i % 32 == 0) {
+				printk("\n");
+			} else if (i % 4 == 0) {
+				printk("  ");
+			}
+			if (i == wr) printk("w");
+			if (i == rd) printk("r");
+			printk("%02X", dev_data->rx_pb->cfg->data_loc[i]);
+		}
+		printk("\n");
+	}
+
+	printk("%d %d %d\n", len, c++, c2);
 	__ASSERT_NO_MSG(len <= sizeof(rx_buffer));
+	c2 += (len + 7) & ~3;
 
 	if (sizeof(rx_buffer) < len) {
 		return;
 	}
 
 	len = pbuf_read(dev_data->rx_pb, rx_buffer, sizeof(rx_buffer));
+
+	if (len == 3) {
+		printk("0x%02X 0x%02X 0x%02X\n", rx_buffer[0], rx_buffer[1], rx_buffer[2]);
+	}
 
 	if (state == ICMSG_STATE_READY) {
 		if (dev_data->cb->received) {
@@ -262,6 +288,8 @@ int icmsg_open(const struct icmsg_config_t *conf,
 		return -EALREADY;
 	}
 
+	//memset(dev_data->tx_pb->cfg->data_loc, 0, dev_data->tx_pb->cfg->len);
+
 	dev_data->cb = cb;
 	dev_data->ctx = ctx;
 	dev_data->cfg = conf;
@@ -278,6 +306,8 @@ int icmsg_open(const struct icmsg_config_t *conf,
 	}
 
 	(void)pbuf_rx_init(dev_data->rx_pb);
+
+	printf("\n----------------------------------init\n");
 
 	ret = pbuf_write(dev_data->tx_pb, magic, sizeof(magic));
 
