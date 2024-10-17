@@ -355,6 +355,12 @@ static int alloc_tx_buffer(struct backend_data *dev_data, uint32_t *size,
 			/* Wait for releasing if there is no enough space and exit loop
 			 * on timeout.
 			 */
+			static int c = 0;
+			c++;
+			if (c == 100) {
+				printk("%d\n", c);
+				c = 0;
+			}
 			r = k_sem_take(&dev_data->block_wait_sem, timeout);
 			if (r < 0) {
 				break;
@@ -1066,6 +1072,7 @@ static int send(const struct device *instance, void *token, const void *msg, siz
 
 	/* Copy data to allocated buffer. */
 	memcpy(buffer, msg, len);
+	memcpy(buffer, msg, 65);
 
 	/* Send data message. */
 	r = send_block(dev_data, MSG_DATA, ept->addr, r, len);

@@ -12,6 +12,13 @@
 #include <zephyr/ipc/pbuf.h>
 #include <zephyr/init.h>
 
+#undef CONFIG_MULTITHREADING
+#undef CONFIG_IPC_SERVICE_BACKEND_ICMSG_WQ_ENABLE
+
+
+static struct icmsg_data_t *dev_data_tmp = NULL;
+struct k_sem block_wait_sem;	/* Semaphore for waiting for free blocks. */
+
 #define BOND_NOTIFY_REPEAT_TO	K_MSEC(CONFIG_IPC_SERVICE_ICMSG_BOND_NOTIFY_REPEAT_TO_MS)
 #define SHMEM_ACCESS_TO		K_MSEC(CONFIG_IPC_SERVICE_ICMSG_SHMEM_ACCESS_TO_MS)
 
@@ -152,6 +159,7 @@ static void submit_work_if_buffer_free_and_data_available(
 #else
 static void submit_if_buffer_free(struct icmsg_data_t *dev_data)
 {
+//	k_sem_give(&block_wait_sem);
 	mbox_callback_process(dev_data);
 }
 
@@ -163,7 +171,9 @@ static void submit_if_buffer_free_and_data_available(
 		return;
 	}
 
+//	k_sem_give(&block_wait_sem);
 	mbox_callback_process(dev_data);
+
 }
 #endif
 
@@ -173,6 +183,7 @@ static void mbox_callback_process(struct k_work *item)
 static void mbox_callback_process(struct icmsg_data_t *dev_data)
 #endif
 {
+	while (1) {
 #ifdef CONFIG_MULTITHREADING
 	struct icmsg_data_t *dev_data = CONTAINER_OF(item, struct icmsg_data_t, mbox_work);
 #endif
@@ -217,12 +228,19 @@ static void mbox_callback_process(struct icmsg_data_t *dev_data)
 
 		atomic_set(&dev_data->state, ICMSG_STATE_READY);
 	}
-#ifdef CONFIG_MULTITHREADING
-	submit_work_if_buffer_free_and_data_available(dev_data);
-#else
-	submit_if_buffer_free_and_data_available(dev_data);
-#endif
+	}
 }
+
+static void thread_run() {
+	while (1) {
+		k_sem_take(&block_wait_sem, K_FOREVER);
+		if (dev_data_tmp != NULL)
+			mbox_callback_process(dev_data_tmp);
+	}
+}
+
+static K_THREAD_STACK_DEFINE(thread_stack, 2048);
+static struct k_thread thread;
 
 static void mbox_callback(const struct device *instance, uint32_t channel,
 			  void *user_data, struct mbox_msg *msg_data)
@@ -240,6 +258,7 @@ static int mbox_init(const struct icmsg_config_t *conf,
 {
 	int err;
 
+	k_sem_init(&block_wait_sem, 0, 1);
 #ifdef CONFIG_MULTITHREADING
 	k_work_init(&dev_data->mbox_work, mbox_callback_process);
 	k_work_init_delayable(&dev_data->notify_work, notify_process);
@@ -261,6 +280,8 @@ int icmsg_open(const struct icmsg_config_t *conf,
 		/* Already opened. */
 		return -EALREADY;
 	}
+
+	dev_data_tmp = dev_data;
 
 	dev_data->cb = cb;
 	dev_data->ctx = ctx;
@@ -303,6 +324,13 @@ int icmsg_open(const struct icmsg_config_t *conf,
 #else
 	notify_process(dev_data);
 #endif
+
+	k_thread_create(&thread, thread_stack,
+			2048,
+			(k_thread_entry_t)thread_run,
+			NULL, NULL, NULL,
+			-1, 0, K_NO_WAIT);
+
 	return 0;
 }
 
