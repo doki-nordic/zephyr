@@ -86,6 +86,7 @@
 #include <zephyr/ipc/icmsg.h>
 #include <zephyr/ipc/ipc_service_backend.h>
 #include <zephyr/cache.h>
+#include "ltrace.h"
 
 #if defined(CONFIG_ARCH_POSIX)
 #include <soc.h>
@@ -334,6 +335,7 @@ static int buffer_to_index_validate(const struct channel_config *ch_conf,
 static int alloc_tx_buffer(struct backend_data *dev_data, uint32_t *size,
 			   uint8_t **buffer, k_timeout_t timeout)
 {
+	TRACE_ICBMSG_ALLOC();
 	const struct icbmsg_config *conf = dev_data->conf;
 	size_t total_size = *size + BLOCK_HEADER_SIZE;
 	size_t num_blocks = DIV_ROUND_UP(total_size, conf->tx.block_size);
@@ -390,6 +392,7 @@ static int alloc_tx_buffer(struct backend_data *dev_data, uint32_t *size,
 			/* IPC service require -ENOMEM error in case of no memory. */
 			r = -ENOMEM;
 		}
+		TRACE_RETURN_ERROR();
 		return r;
 	}
 
@@ -414,6 +417,7 @@ static int alloc_tx_buffer(struct backend_data *dev_data, uint32_t *size,
 	block = block_from_index(&conf->tx, tx_block_index);
 	block->header.size = *size;
 	*buffer = block->data;
+	TRACE_RETURN_OK();
 	return tx_block_index;
 }
 
@@ -434,6 +438,7 @@ static int alloc_tx_buffer(struct backend_data *dev_data, uint32_t *size,
 static int release_tx_blocks(struct backend_data *dev_data, size_t tx_block_index,
 			     size_t size, int new_size)
 {
+	TRACE_ICBMSG_RELEASE_TX();
 	const struct icbmsg_config *conf = dev_data->conf;
 	struct block_content *block;
 	size_t num_blocks;
@@ -454,6 +459,7 @@ static int release_tx_blocks(struct backend_data *dev_data, size_t tx_block_inde
 		if (new_num_blocks > num_blocks) {
 			LOG_ERR("Requested %d blocks, allocated %d", new_num_blocks,
 				num_blocks);
+			TRACE_RETURN_ERROR();
 			return -EINVAL;
 		}
 		/* Update actual buffer size and number of blocks to release. */
@@ -467,20 +473,26 @@ static int release_tx_blocks(struct backend_data *dev_data, size_t tx_block_inde
 	}
 
 	if (num_blocks > 0) {
+		TRACE_ICBMSG_BITARR_FREE();
 		/* Free bits in the bitmap. */
 		r = sys_bitarray_free(conf->tx_usage_bitmap, num_blocks,
 				      release_index);
+		TRACE_END();
 		if (r < 0) {
 			LOG_ERR("Cannot free bits, err %d", r);
+			TRACE_RETURN_ERROR();
 			return r;
 		}
 
 #ifdef CONFIG_MULTITHREADING
+		TRACE_ICBMSG_SEM_GIVE();
 		/* Wake up all waiting threads. */
 		k_sem_give(&dev_data->block_wait_sem);
+		TRACE_END();
 #endif
 	}
-
+	
+	TRACE_RETURN_OK();
 	return tx_block_index;
 }
 
@@ -518,6 +530,7 @@ static int release_tx_buffer(struct backend_data *dev_data, const uint8_t *buffe
 static int send_control_message(struct backend_data *dev_data, enum msg_type msg_type,
 				uint8_t ept_addr, uint8_t block_index)
 {
+	TRACE_ICBMSG_SEND_CONTROL_MESSAGE();
 	const struct icbmsg_config *conf = dev_data->conf;
 	const struct control_message message = {
 		.msg_type = (uint8_t)msg_type,
@@ -529,14 +542,17 @@ static int send_control_message(struct backend_data *dev_data, enum msg_type msg
 #ifdef CONFIG_MULTITHREADING
 	k_mutex_lock(&dev_data->mutex, K_FOREVER);
 #endif
+	TRACE_ICBMSG_SEND_ICMSG();
 	r = icmsg_send(&conf->control_config, &dev_data->control_data, &message,
 		       sizeof(message));
+	if (r >= 0) TRACE_RETURN_OK(); else TRACE_RETURN_ERROR();
 #ifdef CONFIG_MULTITHREADING
 	k_mutex_unlock(&dev_data->mutex);
 #endif
 	if (r < sizeof(message)) {
 		LOG_ERR("Cannot send over ICMsg, err %d", r);
 	}
+	if (r >= 0) TRACE_RETURN_OK(); else TRACE_RETURN_ERROR();
 	return r;
 }
 
@@ -579,6 +595,7 @@ static int send_release(struct backend_data *dev_data, const uint8_t *buffer,
 static int send_block(struct backend_data *dev_data, enum msg_type msg_type,
 		      uint8_t ept_addr, size_t tx_block_index, size_t size)
 {
+	TRACE_ICBMSG_SEND_BLOCK();
 	struct block_content *block;
 	int r;
 
@@ -593,6 +610,7 @@ static int send_block(struct backend_data *dev_data, enum msg_type msg_type,
 		release_tx_blocks(dev_data, tx_block_index, size, -1);
 	}
 
+	if (r >= 0) TRACE_RETURN_OK(); else TRACE_RETURN_ERROR();
 	return r;
 }
 
@@ -862,7 +880,9 @@ static int received_data(struct backend_data *dev_data, size_t rx_block_index,
 	sys_bitarray_clear_bit(conf->rx_hold_bitmap, rx_block_index);
 
 	/* Call the endpoint callback. It can set the hold bit. */
+	TRACE_ICBMSG_USER_CALLBACK();
 	ept->cfg->cb.received(buffer, size, ept->cfg->priv);
+	TRACE_RETURN_OK();
 
 	/* If the bit is still cleared, request release of the buffer. */
 	sys_bitarray_test_bit(conf->rx_hold_bitmap, rx_block_index, &bit_val);
@@ -945,6 +965,7 @@ static int received_bound(struct backend_data *dev_data, size_t rx_block_index,
  */
 static void control_received(const void *data, size_t len, void *priv)
 {
+	TRACE_ICBMSG_CTRL_RECEIVED();
 	const struct device *instance = priv;
 	struct backend_data *dev_data = instance->data;
 	const struct control_message *message = (const struct control_message *)data;
@@ -966,7 +987,9 @@ static void control_received(const void *data, size_t len, void *priv)
 
 	switch (message->msg_type) {
 	case MSG_RELEASE_DATA:
+		TRACE_ICBMSG_SEM_GIVE();
 		r = received_release_data(dev_data, message->block_index);
+		TRACE_END();
 		break;
 	case MSG_RELEASE_BOUND:
 		r = received_release_data(dev_data, message->block_index);
@@ -994,6 +1017,7 @@ exit:
 	if (r < 0) {
 		LOG_ERR("Failed to receive, err %d", r);
 	}
+	if (r >= 0) TRACE_RETURN_OK(); else TRACE_RETURN_ERROR();
 }
 
 /**
@@ -1020,6 +1044,8 @@ static int open(const struct device *instance)
 {
 	const struct icbmsg_config *conf = instance->config;
 	struct backend_data *dev_data = instance->data;
+
+	initialize_trace();
 
 	static const struct ipc_service_cb cb = {
 		.bound = control_bound,
@@ -1051,6 +1077,7 @@ static int open(const struct device *instance)
  */
 static int send(const struct device *instance, void *token, const void *msg, size_t len)
 {
+	TRACE_ICBMSG_SEND();
 	struct backend_data *dev_data = instance->data;
 	struct ept_data *ept = token;
 	uint32_t alloc_size;
@@ -1061,18 +1088,38 @@ static int send(const struct device *instance, void *token, const void *msg, siz
 	alloc_size = len;
 	r = alloc_tx_buffer(dev_data, &alloc_size, &buffer, K_NO_WAIT);
 	if (r < 0) {
+		TRACE_RETURN_ERROR();
 		return r;
 	}
 
 	/* Copy data to allocated buffer. */
-	memcpy(buffer, msg, len);
+	TRACE_ICBMSG_SEND_MEMCPY();
+	//memcpy(buffer, msg, len);
+	const uint8_t* from = (const uint8_t*)msg;
+	const uint8_t* end = (const uint8_t*)msg + len;
+	uint8_t* to = (uint8_t*)buffer;
+	if (((uintptr_t)from & 3) == 0) {
+		const uint32_t* from32 = (const uint32_t*)from;
+		const uint32_t* end32 = (const uint32_t*)((uintptr_t)end & ~3);
+		uint32_t* to32 = (uint32_t*)to;
+		while (from32 < end32) {
+			*to32++ = *from32++;
+		}
+		from = (const uint8_t*)from32;
+	}
+	while (from < end) {
+		*to++ = *from++;
+	}
+	TRACE_RETURN_OK();
 
 	/* Send data message. */
 	r = send_block(dev_data, MSG_DATA, ept->addr, r, len);
 	if (r < 0) {
+		TRACE_RETURN_ERROR();
 		return r;
 	}
 
+	TRACE_RETURN_OK();
 	return len;
 }
 
@@ -1454,3 +1501,4 @@ const static struct ipc_service_backend backend_ops = {
 			      &backend_ops);
 
 DT_INST_FOREACH_STATUS_OKAY(DEFINE_BACKEND_DEVICE)
+

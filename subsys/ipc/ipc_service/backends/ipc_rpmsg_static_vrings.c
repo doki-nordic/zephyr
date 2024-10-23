@@ -20,6 +20,8 @@
 
 #include "ipc_rpmsg_static_vrings.h"
 
+#include "ltrace.h"
+
 #define DT_DRV_COMPAT	zephyr_ipc_openamp_static_vrings
 
 #define NUM_INSTANCES	DT_NUM_INST_STATUS_OKAY(DT_DRV_COMPAT)
@@ -295,15 +297,18 @@ static int vr_shm_configure(struct ipc_static_vrings *vr, const struct backend_c
 
 static void virtio_notify_cb(struct virtqueue *vq, void *priv)
 {
+	TRACE_RP_MBOX_SEND();
 	struct backend_config_t *conf = priv;
 
 	if (conf->mbox_tx.dev) {
 		mbox_send_dt(&conf->mbox_tx, NULL);
 	}
+	TRACE_RETURN_OK();
 }
 
 static void mbox_callback_process(struct k_work *item)
 {
+	TRACE_RP_CALLBACK_PROCESS();
 	struct backend_data_t *data;
 	unsigned int vq_id;
 
@@ -311,14 +316,17 @@ static void mbox_callback_process(struct k_work *item)
 	vq_id = (data->role == ROLE_HOST) ? VIRTQUEUE_ID_HOST : VIRTQUEUE_ID_REMOTE;
 
 	virtqueue_notification(data->vr.vq[vq_id]);
+	TRACE_RETURN_OK();
 }
 
 static void mbox_callback(const struct device *instance, uint32_t channel,
 			  void *user_data, struct mbox_msg *msg_data)
 {
+	TRACE_RP_MBOX_CALLBACK();
 	struct backend_data_t *data = user_data;
 
 	k_work_submit_to_queue(&data->mbox_wq, &data->mbox_work);
+	TRACE_RETURN_OK();
 }
 
 static int mbox_init(const struct device *instance)
@@ -498,9 +506,21 @@ static int deregister_ept(const struct device *instance, void *token)
 	return 0;
 }
 
+static inline void cleanup_trace(bool* ok)
+{
+	if (ok) {
+		TRACE_RETURN_OK();
+	} else {
+		TRACE_RETURN_ERROR();
+	}
+}
+
 static int send(const struct device *instance, void *token,
 		const void *msg, size_t len)
 {
+	TRACE_RP_SEND();
+	__attribute__((cleanup(cleanup_trace)))
+	bool ok = false;
 	struct backend_data_t *data = instance->data;
 	struct ipc_rpmsg_ept *rpmsg_ept;
 	int ret;
@@ -529,6 +549,7 @@ static int send(const struct device *instance, void *token,
 		return -ENOMEM;
 	}
 
+	ok = true;
 	return ret;
 }
 
@@ -565,6 +586,7 @@ static int open(const struct device *instance)
 	struct ipc_rpmsg_instance *rpmsg_inst;
 	struct rpmsg_device *rdev;
 	int err;
+	initialize_trace();
 
 	if (!atomic_cas(&data->state, STATE_READY, STATE_BUSY)) {
 		return -EALREADY;

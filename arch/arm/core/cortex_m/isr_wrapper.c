@@ -30,8 +30,10 @@
  * perform the context switch itself.
  *
  */
+#include "../../../../subsys/ipc/ipc_service/backends/ltrace.h"
 void _isr_wrapper(void)
 {
+	TRACE_SYSTEM_IRQ();
 #ifdef CONFIG_TRACING_ISR
 	sys_trace_isr_enter();
 #endif /* CONFIG_TRACING_ISR */
@@ -83,6 +85,7 @@ void _isr_wrapper(void)
 #ifdef CONFIG_TRACING_ISR
 	sys_trace_isr_exit();
 #endif /* CONFIG_TRACING_ISR */
+	TRACE_RETURN_OK();
 
 	z_arm_exc_exit();
 }

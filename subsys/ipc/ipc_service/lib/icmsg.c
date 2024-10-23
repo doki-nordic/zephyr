@@ -12,6 +12,8 @@
 #include <zephyr/ipc/pbuf.h>
 #include <zephyr/init.h>
 
+#include "../backends/ltrace.h"
+
 #define BOND_NOTIFY_REPEAT_TO	K_MSEC(CONFIG_IPC_SERVICE_ICMSG_BOND_NOTIFY_REPEAT_TO_MS)
 #define SHMEM_ACCESS_TO		K_MSEC(CONFIG_IPC_SERVICE_ICMSG_SHMEM_ACCESS_TO_MS)
 
@@ -173,6 +175,7 @@ static void mbox_callback_process(struct k_work *item)
 static void mbox_callback_process(struct icmsg_data_t *dev_data)
 #endif
 {
+	TRACE_ICMSG_PROCESS();
 #ifdef CONFIG_MULTITHREADING
 	struct icmsg_data_t *dev_data = CONTAINER_OF(item, struct icmsg_data_t, mbox_work);
 #endif
@@ -184,12 +187,14 @@ static void mbox_callback_process(struct icmsg_data_t *dev_data)
 
 	if (len == 0) {
 		/* Unlikely, no data in buffer. */
+		TRACE_RETURN_OK();
 		return;
 	}
 
 	__ASSERT_NO_MSG(len <= sizeof(rx_buffer));
 
 	if (sizeof(rx_buffer) < len) {
+		TRACE_RETURN_ERROR();
 		return;
 	}
 
@@ -208,6 +213,7 @@ static void mbox_callback_process(struct icmsg_data_t *dev_data)
 
 		if (endpoint_invalid) {
 			__ASSERT_NO_MSG(false);
+			TRACE_RETURN_ERROR();
 			return;
 		}
 
@@ -222,17 +228,20 @@ static void mbox_callback_process(struct icmsg_data_t *dev_data)
 #else
 	submit_if_buffer_free_and_data_available(dev_data);
 #endif
+	TRACE_RETURN_OK();
 }
 
 static void mbox_callback(const struct device *instance, uint32_t channel,
 			  void *user_data, struct mbox_msg *msg_data)
 {
+	TRACE_MBOX_CALLBACK();
 	struct icmsg_data_t *dev_data = user_data;
 #ifdef CONFIG_MULTITHREADING
 	submit_work_if_buffer_free(dev_data);
 #else
 	submit_if_buffer_free(dev_data);
 #endif
+	TRACE_RETURN_OK();
 }
 
 static int mbox_init(const struct icmsg_config_t *conf,
