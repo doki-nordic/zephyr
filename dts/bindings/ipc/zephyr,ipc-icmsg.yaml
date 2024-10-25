@@ -41,3 +41,87 @@ properties:
   mbox-names:
     description: MBOX channel names (must be called "tx" and "rx")
     required: true
+
+  version:
+    type: int
+    enum: [1, 2]
+    default: 2
+    description: |
+      Protocol version to use. Those two versions are not compatible in behavior
+      and underlying shared memory data structures. The version 2 introduces
+      improved initialization and binding behavior allowing it to properly handle
+      situations like remote CPU resets or temporary de-registering and registering
+      again the endpoints. It also provides full support of state change callbacks
+      of ipc_service.
+
+  compatibility:
+    type: int
+    enum: [0, 1]
+    description: |
+      Set to 1 to provide backward compatibility with version 1.
+      Set to 0 to disable backward compatibility.
+      This property is ignored if "version" property is set to 1.
+
+      With backward compatibility mode, this instance will automatically detect
+      if the remote side is using version 1 protocol and switch to this
+      protocol if needed.
+
+  thread:
+    type: string
+    enum:
+      - none
+      - dedicated
+      - shared
+      - system
+    default: shared
+    description: |
+      Selects what thread will be used to call the callbacks.
+
+      "none" - callbacks will be called directly from MBOX callback which is
+      inside ISR context.
+
+      "dedicated" - callbacks will be called from a thread created and owned by
+      this instance.
+
+      "shared" - callbacks will be called from a thread shared between all
+      instances of ICMsg and ICBMsg.
+
+      "system" - callbacks will be called from the system work queue.
+
+      For ICBMsg with CONFIG_MULTITHREADING enabled, the "none" value will use
+      system work queue for endpoint binding and re-binding process, so only
+      receive callbacks will be called directly from ISR, others will come from
+      system work queue.
+
+  drain-input:
+    type: boolean
+    description:
+      If this property is true, the input message processing loop will be
+      working as long as there are waiting incoming messages. Otherwise,
+      the processing will give other tasks time to execute after each message.
+      For "shared" and "system", the work queue item will be rescheduled after
+      processing each message. For "dedicated", k_yield() will be called.
+      For "none", this property is ignored because entire input must be always
+      processed in the ISR.
+
+  thread-stack-size:
+    type: int
+    default: 1280
+    description: |
+      Size of the thread stack for this instance ("dedicated" thread) or
+      minimum required size of the thread stack for this instance ("system" and
+      "shared" thread). For "none" thread, this property is ignored.
+
+  thread-priority:
+    type: string
+    default: "-1"
+    description: |
+      Thread priority for this instance ("dedicated" thread) or lowest required
+      thread priority for this instance ("system" and "shared" thread).
+      For "none" thread, this property is ignored.
+
+      This property is a string and it can be a single integer representing
+      the priority or an expression that uses thread priority macros
+      like "K_PRIO_COOP(1)" or "K_PRIO_PREEMPT(2)"
+
+      By default, priority of -1 is assumed.

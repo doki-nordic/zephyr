@@ -400,6 +400,32 @@ extern "C" {
 #define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
+/**
+ * @brief Obtain the maximum of any number of values.
+ *
+ * @note Supports up to 64 arguments.
+ *
+ * @note Arguments are evaluated multiple times depending of total number
+ * of arguments.
+ *
+ * @param ... List of arguments
+ * @return  Maximum value of variadic arguments
+ */
+#define MAX_VA(...) Z_COMBINE_BINOP(MAX, __VA_ARGS__)
+
+/**
+ * @brief Obtain the minimum of any number of values.
+ *
+ * @note Supports up to 64 arguments.
+ *
+ * @note Arguments are evaluated multiple times depending of total number
+ * of arguments.
+ *
+ * @param ... List of arguments
+ * @return  Minimum value of variadic arguments
+ */
+#define MIN_VA(...) Z_COMBINE_BINOP(MIN, __VA_ARGS__)
+
 #ifndef CLAMP
 /**
  * @brief Clamp a value to a given range.

@@ -1455,3 +1455,5 @@ const static struct ipc_service_backend backend_ops = {
 			      &backend_ops);
 
 DT_INST_FOREACH_STATUS_OKAY(DEFINE_BACKEND_DEVICE)
+
+#include "ipc_icxmsg_common.h"
