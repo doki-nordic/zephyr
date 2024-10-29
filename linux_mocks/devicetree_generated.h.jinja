@@ -1,0 +1,32 @@
+#ifndef _DEV_TREE_GEN_
+#define _DEV_TREE_GEN_
+
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#define MOCK_ADDRESS(region) ((void*)(1024 * region))
+
+{% if icmsg|length > 0 %}
+#define DT_COMPAT_HAS_OKAY_zephyr_ipc_icmsg 1
+#define DT_FOREACH_OKAY_INST_zephyr_ipc_icmsg(fn) FOR_EACH(fn, () {% for inst in icmsg %} , {{inst.index}} {% endfor %} )
+{% endif %}
+
+
+{% for inst in icmsg %}
+#define DT_N_INST_{{inst.index}}_zephyr_ipc_icmsg_FULL_NAME "icmsg_instance_{{inst.index}}"
+#define __device_dts_ord_DT_N_INST_{{inst.index}}_zephyr_ipc_icmsg_P_mboxes_NAME_tx_PH_ORD (_mock_mboxes[0])
+#define __device_dts_ord_DT_N_INST_{{inst.index}}_zephyr_ipc_icmsg_P_mboxes_NAME_rx_PH_ORD (_mock_mboxes[1])
+{% if 'dcache_alignment' in inst %}
+#define DT_N_INST_{{inst.index}}_zephyr_ipc_icmsg_P_dcache_alignment_EXISTS 1
+#define DT_N_INST_{{inst.index}}_zephyr_ipc_icmsg_P_dcache_alignment {{inst.dcache_alignment}}
+{% endif %}
+#define DT_N_INST_{{inst.index}}_zephyr_ipc_icmsg_P_tx_region_IDX_0_PH_REG_IDX_0_VAL_SIZEU {{inst.tx_region_size}}
+#define DT_N_INST_{{inst.index}}_zephyr_ipc_icmsg_P_tx_region_IDX_0_PH_REG_IDX_0_VAL_ADDRESSU MOCK_ADDRESS({{inst.tx_region}})
+#define DT_N_INST_{{inst.index}}_zephyr_ipc_icmsg_P_rx_region_IDX_0_PH_REG_IDX_0_VAL_SIZEU {{inst.rx_region_size}}
+#define DT_N_INST_{{inst.index}}_zephyr_ipc_icmsg_P_rx_region_IDX_0_PH_REG_IDX_0_VAL_ADDRESSU MOCK_ADDRESS({{inst.rx_region}})
+#define DT_N_INST_{{inst.index}}_zephyr_ipc_icmsg_ORD {{inst.index}}
+{% endfor %}
+
+
+#endif

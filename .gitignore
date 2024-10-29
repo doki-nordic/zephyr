@@ -1,0 +1,5 @@
+/.venv
+/tmp
+/tmp.c
+/build
+/cpu*/zephyr/*_generated.*

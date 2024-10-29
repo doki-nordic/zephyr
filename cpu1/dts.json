@@ -1,0 +1,24 @@
+{
+	"icmsg": [
+		{
+			"index": 1,
+			"tx_mbox": 0,
+			"rx_mbox": 1,
+			"dcache_alignment": 32,
+			"tx_region": "0",
+			"tx_region_size": "32 * 1024",
+			"rx_region": "1",
+			"rx_region_size": "32 * 1024"
+		},
+		{
+			"index": 2,
+			"tx_mbox": 2,
+			"rx_mbox": 3,
+			"dcache_alignment": 32,
+			"tx_region": "2",
+			"tx_region_size": "32 * 1024",
+			"rx_region": "3",
+			"rx_region_size": "32 * 1024"
+		}
+	]
+}

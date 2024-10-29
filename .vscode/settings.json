@@ -1,0 +1,9 @@
+{
+	"editor.tabSize": 8,
+	"editor.detectIndentation": false,
+	"editor.indentSize": "tabSize",
+	"editor.insertSpaces": false,
+	"files.associations": {
+		"ipc_service_backend.h": "c"
+	},
+}
