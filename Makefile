@@ -5,10 +5,10 @@ TARGET2=build/cpu2
 SOURCES=\
 	./main.c \
 	./ipc_service/ipc_service.c \
-	./ipc_service/lib/pbuf.c \
-	./linux_mocks/cache.c \
 	./ipc_service/lib/icmsg.c \
 	./ipc_service/backends/ipc_icmsg.c \
+	./linux_mocks/cache.c \
+#	./ipc_service/lib/pbuf.c \
 
 DEFINES=
 
@@ -18,7 +18,7 @@ INCLUDE=\
 	-I./ipc_service/backends \
 	-I./ipc_service/lib \
 
-all: $(TARGET1) $(TARGET2)
+all: $(TARGET1) #$(TARGET2)
 #all: tmp
 
 $(TARGET1): _do_it_always_ dts

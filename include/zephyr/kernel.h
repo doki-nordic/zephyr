@@ -4125,6 +4125,8 @@ struct k_work_q {
 
 	/* Flags describing queue state. */
 	uint32_t flags;
+	void* cv;
+	void* mutex;
 };
 
 /* Provide the implementation for inline functions declared above */

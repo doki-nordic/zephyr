@@ -1,24 +1,39 @@
 {
-	"icmsg": [
+	"devs": [
 		{
 			"index": 1,
+			"type": "icmsg",
 			"tx_mbox": 1,
 			"rx_mbox": 0,
-			"dcache_alignment": 32,
 			"tx_region": "1",
 			"tx_region_size": "32 * 1024",
 			"rx_region": "2",
-			"rx_region_size": "32 * 1024"
+			"rx_region_size": "32 * 1024",
+			"other": {
+				"dcache_alignment": 32,
+				"version": 1,
+				"compatibility": 0,
+				"thread": "shared",
+				"thread_priority": -1
+			}
 		},
 		{
 			"index": 2,
+			"type": "icmsg",
 			"tx_mbox": 3,
 			"rx_mbox": 2,
 			"dcache_alignment": 32,
 			"tx_region": "3",
 			"tx_region_size": "32 * 1024",
 			"rx_region": "2",
-			"rx_region_size": "32 * 1024"
+			"rx_region_size": "32 * 1024",
+			"other": {
+				"dcache_alignment": 32,
+				"version": 2,
+				"compatibility": 1,
+				"thread": "system",
+				"thread_priority": "K_PRIO_COOP(2)"
+			}
 		}
 	]
 }

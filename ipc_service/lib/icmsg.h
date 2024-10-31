@@ -26,36 +26,80 @@ extern "C" {
  * @{
  */
 
-enum icmsg_state {
-	ICMSG_STATE_OFF,
-	ICMSG_STATE_BUSY,
-	ICMSG_STATE_READY,
+enum icmsg_thread_mode {
+	ICMSG_THREAD_MODE_NONE,
+	ICMSG_THREAD_MODE_DEDICATED,
+	ICMSG_THREAD_MODE_SHARED,
+	ICMSG_THREAD_MODE_SYSTEM,
 };
 
 struct icmsg_config_t {
+	// MBOXes
 	struct mbox_dt_spec mbox_tx;
 	struct mbox_dt_spec mbox_rx;
+	// TX fifo buffer
+	struct {
+		uint32_t *buffer;
+		uint32_t buffer_words;
+	} tx;
+	// RX fifo buffer
+	struct {
+		const uint32_t *buffer;
+		uint32_t buffer_words;
+	} rx;
+	// Read-write control block in shared memory
+	volatile struct
+	{
+		uint32_t tx_write_index;
+		uint32_t rx_read_index;
+		uint16_t local_session_req;
+		uint16_t remote_session_ack;
+		uint32_t _reserved;
+	} *rw_ctrl;
+	// Read-only control block in shared memory
+	const volatile struct
+	{
+		uint32_t rx_write_index;
+		uint32_t tx_read_index;
+		union {
+			// Two fields are grouped together allowing simultaneous read
+			uint32_t session_handshake;
+			struct {
+				uint16_t remote_session_req;
+				uint16_t local_session_ack;
+			};
+		};
+		uint32_t _reserved;
+	} *ro_ctrl;
+	enum icmsg_thread_mode thread_mode;
 };
 
-struct icmsg_data_t {
-	/* Tx/Rx buffers. */
-	struct pbuf *tx_pb;
-	struct pbuf *rx_pb;
-#ifdef CONFIG_IPC_SERVICE_ICMSG_SHMEM_ACCESS_SYNC
-	struct k_mutex tx_lock;
-#endif
 
-	/* Callbacks for an endpoint. */
+struct icmsg_data_t {
+	int state;
+	// local copy of TX FIFO indexes
+	struct
+	{
+		uint32_t read_index;
+		uint32_t write_index;
+	} tx;
+	// local copy of RX FIFO indexes
+	struct
+	{
+		uint32_t read_index;
+	} rx;
+	// Local session id
+	uint32_t local_session;
+	// Current remote session id or -1 if unknown.
+	uint32_t remote_session;
+	const struct icmsg_config_t *conf;
+	/* Callbacks */
 	const struct ipc_service_cb *cb;
 	void *ctx;
-
-	/* General */
-	const struct icmsg_config_t *cfg;
-#ifdef CONFIG_MULTITHREADING
-	struct k_work_delayable notify_work;
-	struct k_work mbox_work;
-#endif
-	atomic_t state;
+	/* Spin lock*/
+	struct k_spinlock lock;
+	/* Work item */
+	struct k_work work; // todo: depends on config
 };
 
 /** @brief Open an icmsg instance
