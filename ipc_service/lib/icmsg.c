@@ -23,7 +23,7 @@ static K_THREAD_STACK_DEFINE(icxmsg_shared_stack,
 struct k_work_q icxmsg_shared_workq;
 #endif
 
-static bool receive_message(const struct icmsg_config_t *conf, struct icmsg_data_t *dev_data)
+static bool receive_message(const struct icmsg_config_t *conf, struct icmsg_data_t *dev_data, bool lock)
 {
 	uint8_t* buffer = conf->rx_buffer;
 	uint32_t max_size = conf->rx_buffer_size;
@@ -307,7 +307,7 @@ void icmsg_init()
 	k_work_queue_start(&icxmsg_shared_workq,
 			   icxmsg_shared_stack,
 			   K_KERNEL_STACK_SIZEOF(icxmsg_shared_stack),
-			   MIN(icmsg_shared_thread_priority, icbmsg_shared_thread_priority),
+			   MIN(ICMSG_SHARED_THREAD_PRIORITY, ICBMSG_SHARED_THREAD_PRIORITY),
 			   &cfg);
 
 #endif

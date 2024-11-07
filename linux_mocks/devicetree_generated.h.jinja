@@ -28,8 +28,17 @@
 {% if inst.type == "icbmsg" %}{% set ns.icbmsg_present = 1 %}{% endif %}
 {% endfor %}
 
+#define _ARG0(x, ...) x
+#define _ARG1(_0, x, ...) x
+#define _ARG2plus(_0, _1, ...) __VA_ARGS__
+#define _HELPER_FOR_EACH(val, data) _ARG0 data (val, _ARG1 data, _ARG2plus data)
+
 {% if ns.icmsg_present %}
 #define DT_COMPAT_HAS_OKAY_zephyr_ipc_icmsg 1
+#define DT_FOREACH_OKAY_INST_VARGS_zephyr_ipc_icmsg(fn, compat, ...) FOR_EACH_FIXED_ARG(_HELPER_FOR_EACH, (), (fn, compat, ##__VA_ARGS__) \
+	{% for inst in devs %} \
+	{% if inst.type == "icmsg" %} , {{inst.index}} {% endif %} \
+	{% endfor %} )
 #define DT_FOREACH_OKAY_INST_zephyr_ipc_icmsg(fn) FOR_EACH(fn, () \
 	{% for inst in devs %} \
 	{% if inst.type == "icmsg" %} , {{inst.index}} {% endif %} \
@@ -39,6 +48,10 @@
 
 {% if ns.icbmsg_present %}
 #define DT_COMPAT_HAS_OKAY_zephyr_ipc_icbmsg 1
+#define DT_FOREACH_OKAY_INST_VARGS_zephyr_ipc_icbmsg(fn, compat, ...) FOR_EACH_FIXED_ARG(_HELPER_FOR_EACH, (), (fn, compat, ##__VA_ARGS__) \
+	{% for inst in devs %} \
+	{% if inst.type == "icbmsg" %} , {{inst.index}} {% endif %} \
+	{% endfor %} )
 #define DT_FOREACH_OKAY_INST_zephyr_ipc_icbmsg(fn) FOR_EACH(fn, () \
 	{% for inst in devs %} \
 	{% if inst.type == "icbmsg" %} , {{inst.index}} {% endif %} \
