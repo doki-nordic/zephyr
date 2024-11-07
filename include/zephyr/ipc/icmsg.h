@@ -56,6 +56,7 @@ struct icmsg_data_t {
 	struct k_work mbox_work;
 #endif
 	atomic_t state;
+	volatile int counter;
 };
 
 /** @brief Open an icmsg instance

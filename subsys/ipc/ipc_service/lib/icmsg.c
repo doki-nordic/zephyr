@@ -228,6 +228,8 @@ static void mbox_callback(const struct device *instance, uint32_t channel,
 			  void *user_data, struct mbox_msg *msg_data)
 {
 	struct icmsg_data_t *dev_data = user_data;
+	//printk("MBOX callback\n");
+	dev_data->counter++;
 #ifdef CONFIG_MULTITHREADING
 	submit_work_if_buffer_free(dev_data);
 #else
@@ -261,6 +263,7 @@ int icmsg_open(const struct icmsg_config_t *conf,
 		/* Already opened. */
 		return -EALREADY;
 	}
+	dev_data->counter = 0;
 
 	dev_data->cb = cb;
 	dev_data->ctx = ctx;
@@ -295,6 +298,15 @@ int icmsg_open(const struct icmsg_config_t *conf,
 	if (ret) {
 		return ret;
 	}
+	printk("MBOX initialized %d\n", dev_data->counter);
+	k_sleep(K_SECONDS(3));
+	printk("MBOX sending notification %d\n", dev_data->counter);
+	ret = mbox_send_dt(&conf->mbox_rx, NULL);
+	printk("MBOX notification send %d %d\n", dev_data->counter, ret);
+	k_sleep(K_SECONDS(1));
+	printk("MBOX done waiting %d\n", dev_data->counter);
+	k_sleep(K_SECONDS(2));
+	printk("MBOX resuming %d\n", dev_data->counter);
 #ifdef CONFIG_MULTITHREADING
 	ret = k_work_schedule_for_queue(workq, &dev_data->notify_work, K_NO_WAIT);
 	if (ret < 0) {

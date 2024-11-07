@@ -271,6 +271,7 @@ static inline int z_impl_mbox_send(const struct device *dev,
 		(const struct mbox_driver_api *)dev->api;
 
 	if (api->send == NULL) {
+		printk("No send function\n");
 		return -ENOSYS;
 	}
 
