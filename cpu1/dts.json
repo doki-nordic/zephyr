@@ -16,7 +16,8 @@
 				"thread": "shared",
 				"thread_priority": -1,
 				"thread_stack_size": 2049,
-				"drain_input": 1
+				"drain_input": 1,
+				"rx_buffer_size": 1024
 			}
 		},
 		{
@@ -36,7 +37,8 @@
 				"thread": "system",
 				"thread_priority": "K_PRIO_PREEMPT(2)",
 				"thread_stack_size": 1025,
-				"drain_input": 0
+				"drain_input": 0,
+				"rx_buffer_size": 1024
 			}
 		}
 	]

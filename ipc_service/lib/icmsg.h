@@ -26,13 +26,6 @@ extern "C" {
  * @{
  */
 
-enum icmsg_thread_mode {
-	ICMSG_THREAD_MODE_NONE,
-	ICMSG_THREAD_MODE_DEDICATED,
-	ICMSG_THREAD_MODE_SHARED,
-	ICMSG_THREAD_MODE_SYSTEM,
-};
-
 struct icmsg_config_t {
 	// MBOXes
 	struct mbox_dt_spec mbox_tx;
@@ -71,7 +64,14 @@ struct icmsg_config_t {
 		};
 		uint32_t _reserved;
 	} *ro_ctrl;
-	enum icmsg_thread_mode thread_mode;
+	struct k_work_q *workq;
+	bool yield_on_more_input;
+	bool dedicated_workq; // todo: maybe combine into flags?
+	void *rx_buffer; /* todo: receive buffer, associated with workqueue, since we will never
+	                      use more than one per thread. And one for interrupts if needed.
+			      We need to calculate maximum size from device tree.
+			      */
+	uint32_t rx_buffer_size;
 };
 
 

@@ -186,6 +186,10 @@ BUILD_ASSERT(
 BUILD_ASSERT(!ICBMSG_COMPATIBILITY_ENABLED,
 	"ICBMsg does not support compatibility mode.");
 
+typedef uint8_t _icbmsg_system_rx_buffer[_ICXMSG_SYSTEM_RX_BUFFER_SIZE];
+typedef uint8_t _icbmsg_shared_rx_buffer[_ICXMSG_SHARED_RX_BUFFER_SIZE];
+typedef uint8_t _icbmsg_interrupt_rx_buffer[_ICXMSG_INTERRUPT_RX_BUFFER_SIZE];
+
 #undef DT_DRV_COMPAT
 #undef _ICXMSG_VERSION_COMPATIBILITY_DEFAULT
 
@@ -458,6 +462,20 @@ BUILD_ASSERT(
 #pragma message ("ICMSG_SHARED_THREAD_STACK_SIZE=" STRINGIFY(ICMSG_SHARED_THREAD_STACK_SIZE))
 #pragma message ("ICBMSG_SHARED_THREAD_STACK_SIZE=" STRINGIFY(ICBMSG_SHARED_THREAD_STACK_SIZE))
 
+union _icxmsg_system_rx_buffer { // check if the same trick can be used for stack size.
+	_icmsg_system_rx_buffer icmsg;
+	_icbmsg_system_rx_buffer icbmsg;
+};
+
+union _icxmsg_shared_rx_buffer { // check if the same trick can be used for stack size.
+	_icmsg_shared_rx_buffer icmsg;
+	_icbmsg_shared_rx_buffer icbmsg;
+};
+
+union _icxmsg_interrupt_rx_buffer { // check if the same trick can be used for stack size.
+	_icmsg_interrupt_rx_buffer icmsg;
+	_icbmsg_interrupt_rx_buffer icbmsg;
+};
 
 #if 0
 #pragma message ("ICBMSG_VERSION_1_ENABLED is " TO_STRING(ICBMSG_VERSION_1_ENABLED) " == " TO_STRING(DT_INST_FOREACH_STATUS_OKAY(_ICXMSG_VERSION_1_ENABLED)))

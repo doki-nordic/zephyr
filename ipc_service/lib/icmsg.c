@@ -12,8 +12,9 @@ LOG_MODULE_REGISTER(icmsg, CONFIG_ICBMSG_LOG_LEVEL);
 
 
 enum {
-	ICMSG_STATE_UNINITIALIZED = 0,
-	ICMSG_STATE_INITIALIZING = 1,
+	ICMSG_STATE_UNINITIALIZED,
+	ICMSG_STATE_INITIALIZING,
+	ICMSG_STATE_CONNECTED,
 };
 
 #if ICMSG_SHARED_THREAD_ENABLED || ICBMSG_SHARED_THREAD_ENABLED
@@ -22,19 +23,167 @@ static K_THREAD_STACK_DEFINE(icxmsg_shared_stack,
 struct k_work_q icxmsg_shared_workq;
 #endif
 
-
-static void mbox_callback(const struct device *instance, uint32_t channel,
-			  void *user_data, struct mbox_msg *msg_data)
+static bool receive_message(const struct icmsg_config_t *conf, struct icmsg_data_t *dev_data)
 {
-	struct icmsg_data_t *dev_data = user_data;
-	const struct icmsg_config_t *conf = dev_data->conf;
+	uint8_t* buffer = conf->rx_buffer;
+	uint32_t max_size = conf->rx_buffer_size;
 }
 
+static bool callback_iteration(struct icmsg_data_t *dev_data, bool lock)
+{
+	bool rerun = false;
+	const struct icmsg_config_t *conf = dev_data->conf;
+	k_spinlock_key_t key;
+	uint32_t session_handshake;
+	uint16_t remote_session_req;
+	uint16_t local_session_ack;
+	bool notify_remote = false;
+
+	sys_cache_data_invd_range((void*)conf->ro_ctrl, sizeof(*conf->ro_ctrl));
+	__sync_synchronize();
+
+	if (lock) {
+		key = k_spin_lock(&dev_data->lock);
+	}
+
+	// Read session handshake data from shared memory
+	session_handshake = conf->ro_ctrl->session_handshake;
+	remote_session_req = session_handshake & 0xFFFF;
+	local_session_ack = session_handshake >> 16;
+
+	switch (dev_data->state) {
+
+	case ICMSG_STATE_INITIALIZING:
+		// todo: check if remote is v1.0
+		// We are initializing, so we are able to acknowledge remote session immediately
+		if (dev_data->remote_session != remote_session_req) {
+			dev_data->remote_session = remote_session_req;
+			conf->rw_ctrl->remote_session_ack = dev_data->remote_session;
+		}
+		// Remote acknowledged our local session, so connection is ready
+		if (local_session_ack == dev_data->local_session
+			&& (dev_data->remote_session & 0x8000) == 0) {
+			/* Since we got remote_session_req and local_session_ack at once, we know
+			 * that there was not race condition between them. Sessions request is
+			 * set by remote before session acknowledgement, so we known that at this
+			 * point both sides have valid session identifiers.
+			 */
+			dev_data->state = ICMSG_STATE_CONNECTED;
+			if (lock) {
+				k_spin_unlock(&dev_data->lock, key);
+			}
+			if (dev_data->cb->bound) {
+				dev_data->cb->bound(dev_data->ctx);
+			}
+			// Rerun handler in new state.
+			rerun = true;
+			goto synchronize_and_return;
+		}
+		break;
+
+	case ICMSG_STATE_CONNECTED:
+		if (dev_data->remote_session != remote_session_req) {
+			// Remote session has change, so we are disconnected now.
+			// Only solution is to call open() again to open the session from the
+			// beginning.
+			dev_data->state = ICMSG_STATE_UNINITIALIZED;
+			if (lock) {
+				k_spin_unlock(&dev_data->lock, key);
+			}
+			if (dev_data->cb->unbound) {
+				dev_data->cb->unbound(dev_data->ctx);
+			}
+			// Return handler without rerunning, because there is nothing to do in the
+			// UNINITIALIZED state.
+			goto synchronize_and_return;
+		} else if (conf->ro_ctrl->rx_write_index != dev_data->rx.read_index) {
+			bool ok = receive_message(conf, dev_data, lock);
+			rerun = ok && (conf->ro_ctrl->rx_write_index != dev_data->rx.read_index);
+		}
+		break;
+
+	case ICMSG_STATE_UNINITIALIZED:
+	default:
+		break;
+	}
+
+	if (lock) {
+		k_spin_unlock(&dev_data->lock, key);
+	}
+
+synchronize_and_return:
+
+	__sync_synchronize();
+	sys_cache_data_flush_range((void*)conf->rw_ctrl, sizeof(*conf->rw_ctrl));
+
+	return rerun;
+
+	// invalidate cache
+	/*uint32_t value = conf->ro_ctrl.session_handshake;
+	uint16_t remote_session_req = value & 0xFFFF; // todo: check current architecture big/little endian
+	uint16_t local_session_ack = value >> 16;
+	if (remote_session_req != dev_data->remote_session) {
+		bool closed = (remote_session_req & 1) = 0;
+		if (closed) {
+			// todo: set state
+			dev_data->callbacks->set_state(IPC_SERVICE_STATE_UNCONNECTED);
+		} else {
+			// todo: set state
+			dev_data->callbacks->set_state(IPC_SERVICE_STATE_RESET);
+		}
+		// todo: if re-opened during callback, maybe continue to process messages
+		return;
+	}
+	// invalidate cache
+	uint32_t rx_write_index = conf->ro_ctrl->rx_write_index;
+	if (rx_write_index != dev_data->rx.read_index) {
+		// todo: receive messages ignoring different session id.
+	}*/
+}
+
+static void callback_handling(struct icmsg_data_t *dev_data, bool lock)
+{
+	const struct icmsg_config_t *conf = dev_data->conf;
+	bool rerun;
+	
+	do {
+		rerun = callback_iteration(dev_data, lock);
+		if (rerun && ICMSG_YIELD_ON_MORE_INPUT && conf->yield_on_more_input) {
+			if (conf->dedicated_workq) {
+				k_yield();
+			} else if (conf->workq != NULL) {
+				k_work_submit_to_queue(dev_data->conf->workq, &dev_data->work);
+				return;
+			}
+		}
+	} while (rerun);
+}
+
+
+static void mbox_callback(const struct device *instance, uint32_t channel, void *user_data,
+			  struct mbox_msg *msg_data)
+{
+	struct icmsg_data_t *dev_data = user_data;
+
+#if ICMSG_NO_THREAD_ENABLED && (ICMSG_DEDICATED_THREAD_ENABLED || ICMSG_SHARED_THREAD_ENABLED || \
+				ICMSG_SYSTEM_WORK_QUEUE_ENABLED)
+	if (dev_data->conf->workq == NULL) {
+		callback_handling(dev_data, false);
+	} else {
+		k_work_submit_to_queue(dev_data->conf->workq, &dev_data->work);
+	}
+#elif ICMSG_NO_THREAD_ENABLED
+	callback_handling(dev_data, false);
+#else
+	k_work_submit_to_queue(dev_data->conf->workq, &dev_data->work);
+#endif
+}
 
 static void work_process(struct k_work *item)
 {
 	struct icmsg_data_t *dev_data = CONTAINER_OF(item, struct icmsg_data_t, work);
-	const struct icmsg_config_t *conf = dev_data->conf;
+
+	callback_handling(dev_data, true);
 }
 
 int icmsg_open(const struct icmsg_config_t *conf, struct icmsg_data_t *dev_data,
@@ -117,7 +266,7 @@ int icmsg_close(const struct icmsg_config_t *conf, struct icmsg_data_t *dev_data
 	}
 
 #if ICMSG_DEDICATED_THREAD_ENABLED || ICMSG_SHARED_THREAD_ENABLED || ICMSG_SYSTEM_WORK_QUEUE_ENABLED
-	if (conf->thread_mode != ICMSG_THREAD_MODE_NONE) {
+	if (conf->workq != NULL) {
 		(void)k_work_cancel(&dev_data->work);
 	}
 #endif
@@ -402,41 +551,6 @@ static void callback_handling(const struct icmsg_config_t *conf,
 	if (rx_write_index != dev_data->rx.read_index) {
 		// todo: receive messages ignoring different session id.
 	}
-}
-
-static void mbox_callback(const struct device *instance, uint32_t channel,
-			  void *user_data, struct mbox_msg *msg_data)
-{
-	struct icmsg_data_t *dev_data = user_data;
-#if ICMSG_NO_THREAD_ENABLED && !ICMSG_DEDICATED_THREAD_ENABLED && !ICMSG_SHARED_THREAD_ENABLED && !ICMSG_SYSTEM_WORK_QUEUE_ENABLED
-	callback_handling(dev_data->conf, dev_data);
-#elif (ICMSG_DEDICATED_THREAD_ENABLED || ICMSG_SHARED_THREAD_ENABLED) && !ICMSG_NO_THREAD_ENABLED && !ICMSG_SYSTEM_WORK_QUEUE_ENABLED
-	k_work_submit_to_queue(dev_data->conf->workq, &dev_data->mbox_work);
-#elif ICMSG_SYSTEM_WORK_QUEUE_ENABLED && !ICMSG_NO_THREAD_ENABLED && !ICMSG_DEDICATED_THREAD_ENABLED && !ICMSG_SHARED_THREAD_ENABLED
-	k_work_submit(&dev_data->mbox_work);
-#else
-	switch (dev_data->thread_mode) {
-#if ICMSG_NO_THREAD_ENABLED
-	case ICMSG_THREAD_MODE_NONE:
-		callback_handling(conf, dev_data);
-		break;
-#endif
-#if ICMSG_DEDICATED_THREAD_ENABLED || ICMSG_SHARED_THREAD_ENABLED
-	case ICMSG_THREAD_MODE_DEDICATED:
-	case ICMSG_THREAD_MODE_SHARED:
-		k_work_submit_to_queue(conf->workq, &dev_data->mbox_work);
-		break;
-#endif
-#if ICMSG_SYSTEM_WORK_QUEUE_ENABLED
-	case ICMSG_THREAD_MODE_SYSTEM:
-		k_work_submit(&dev_data->mbox_work);
-		break;
-#endif
-	default:
-		__ASSERT_NO_MSG(false);
-		break;
-	}
-#endif
 }
 
 */
