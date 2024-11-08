@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
+#include <sched.h>
 
 #include <zephyr/cache.h>
 #include <zephyr/drivers/mbox.h>
@@ -114,4 +115,9 @@ int k_work_submit_to_queue(struct k_work_q *queue, struct k_work *work)
 	unlock_global();
 	pthread_cond_signal(queue->cv);
 	return 0;
+}
+
+void k_yield(void)
+{
+	sched_yield();
 }

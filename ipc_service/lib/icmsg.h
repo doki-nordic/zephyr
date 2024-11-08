@@ -32,12 +32,12 @@ struct icmsg_config_t {
 	struct mbox_dt_spec mbox_rx;
 	// TX fifo buffer
 	struct {
-		uint32_t *buffer;
+		volatile uint32_t *buffer;
 		uint32_t buffer_words;
 	} tx;
 	// RX fifo buffer
 	struct {
-		const uint32_t *buffer;
+		volatile const uint32_t *buffer;
 		uint32_t buffer_words;
 	} rx;
 	// Read-write control block in shared memory
@@ -47,7 +47,7 @@ struct icmsg_config_t {
 		uint32_t rx_read_index;
 		uint16_t local_session_req;
 		uint16_t remote_session_ack;
-		uint32_t _reserved;
+		uint32_t version;
 	} *rw_ctrl;
 	// Read-only control block in shared memory
 	const volatile struct
@@ -62,16 +62,16 @@ struct icmsg_config_t {
 				uint16_t local_session_ack;
 			};
 		};
-		uint32_t _reserved;
+		uint32_t version;
 	} *ro_ctrl;
 	struct k_work_q *workq;
 	bool yield_on_more_input;
 	bool dedicated_workq; // todo: maybe combine into flags?
-	void *rx_buffer; /* todo: receive buffer, associated with workqueue, since we will never
-	                      use more than one per thread. And one for interrupts if needed.
-			      We need to calculate maximum size from device tree.
-			      */
-	uint32_t rx_buffer_size;
+	uint32_t *rx_buffer; /* todo: receive buffer, associated with workqueue, since we will never
+				use more than one per thread. And one for interrupts if needed.
+				We need to calculate maximum size from device tree.
+				*/
+	uint32_t rx_buffer_words;
 };
 
 
@@ -80,7 +80,6 @@ struct icmsg_data_t {
 	// local copy of TX FIFO indexes
 	struct
 	{
-		uint32_t read_index;
 		uint32_t write_index;
 	} tx;
 	// local copy of RX FIFO indexes
