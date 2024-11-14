@@ -41,6 +41,7 @@
 			mboxes = <&mbox 0>, <&mbox 1>;
 			mbox-names = "tx", "rx";
 			status = "okay";
+			thread = "none";
 
 			bt_hci_ipc0: bt_hci_ipc0 {
 				compatible = "zephyr,bt-hci-ipc";
@@ -57,6 +58,8 @@
 			mboxes = <&mbox 2>, <&mbox 3>;
 			mbox-names = "tx", "rx";
 			status = "okay";
+			thread = "shared";
+			thread-priority = "K_PRIO_COOP(2)";
 		};
 	};
 };
