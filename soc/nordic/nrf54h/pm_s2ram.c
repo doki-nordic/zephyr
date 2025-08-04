@@ -176,6 +176,7 @@ int soc_s2ram_suspend(pm_s2ram_system_off_fn_t system_off)
 	mpu_resume(&backup_data.mpu_context);
 	nvic_resume(&backup_data.nvic_context);
 	scb_resume(&backup_data.scb_context);
+	z_arm_floating_point_init();
 
 	return ret;
 }

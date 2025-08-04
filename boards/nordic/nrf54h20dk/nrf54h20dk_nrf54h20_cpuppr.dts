@@ -29,6 +29,18 @@
 		zephyr,sram = &cpuppr_code_data;
 		zephyr,shell-uart = &uart135;
 	};
+
+	gpiodebug2 {
+		compatible = "gpio-leds";
+		debug2pin: debug2-pin {
+			gpios = <&gpio0 2 0>;
+			label = "Debug PIN 2";
+		};
+	};
+};
+
+&gpio0 {
+	status = "okay";
 };
 
 &cpuapp_cpuppr_ipc {
